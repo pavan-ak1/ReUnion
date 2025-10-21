@@ -1,15 +1,22 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "The Alumni Management System is a full-stack web application designed to connect alumni,students, and institutions on a single interactive platform. The system provides structured management of alumni data, event participation, donations, mentorship programs, career opportunities, and student–alumni networking.",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc -b",
+    "start": "node dist/index.js",
+    "dev": "npm run build && npm run start"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/dotenv": "^8.2.3",
+    "@types/express": "^5.0.3",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
     "typescript": "^5.9.3"
   }
 }
