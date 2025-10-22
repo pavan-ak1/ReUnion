@@ -3,6 +3,10 @@ import express from "express";
 import type { Request, Response } from "express";
 import cors from "cors";
 
+//To log all the incomming requests to the server
+import morgan from 'morgan';
+
+
 dotenv.config();
 
 const app = express();
@@ -11,9 +15,12 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+//basic route
 app.get("/", (req: Request, res: Response) => {
   res.send("API running in backend");
 });
+
+
 
 const port = process.env.PORT || 5000;
 
