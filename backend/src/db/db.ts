@@ -1,17 +1,10 @@
-import {Pool} from 'pg'
+import pool from './pool.js';
 
-
-export const connectDb = new Pool({
-    connectionString:process.env.DATABASE_URL,
-    ssl:{
-        rejectUnauthorized:false,
-    }
-})
-
-connectDb.connect()
-.then(()=>{
-    console.log("Connected to postgreSQL database");
-})
-.catch(()=>{
-    console.log("Could not connect to databsse");
-})
+export const connectDb = async () => {
+  try {
+    const client = await pool.connect();
+    client.release();
+  } catch (err) {
+    console.error("Could not connect to database:", err);
+  }
+};
