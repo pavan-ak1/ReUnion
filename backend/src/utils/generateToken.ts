@@ -13,7 +13,7 @@ export const generateToken = (user_id: number, role: string): string => {
   const options: SignOptions = {
   expiresIn: expiresIn ?? '1h',
 };
-  const token = jwt.sign({ id: user_id, role }, jwtSecret, options);
+  const token = jwt.sign({ user_id, role }, jwtSecret, options);
 
   return token;
 };

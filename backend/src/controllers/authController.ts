@@ -10,6 +10,7 @@ import { attachCookiesToResponse } from "../utils/attachCookiesToResponse.js";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
+
 export const signup = async (req: Request, res: Response) => {
   const client = await pool.connect();
 
@@ -122,6 +123,5 @@ export const signin = async(req:Request, res:Response)=>{
     }
     catch(error){
       console.log(error);
-      
     }
 }
