@@ -15,7 +15,7 @@ import { connectDb } from "./db/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import studentRoutes from "./routes/studentProfileRoutes.js"
 import eventRoutes from "./routes/eventRoutes.js"
-
+import jobsRoutes from "./routes/jobRoutes.js";
 
 const app = express();
 
@@ -36,6 +36,8 @@ app.get("/", (req: Request, res: Response) => {
 app.use('/api/v1',authRoutes);
 app.use('/api/v1', studentRoutes);
 app.use('/api/v1',eventRoutes);
+app.use('/api/v1', jobsRoutes)
+
 
 const port = process.env.PORT || 5000;
 
