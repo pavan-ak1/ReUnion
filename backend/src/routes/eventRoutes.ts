@@ -1,11 +1,15 @@
 import {Router} from "express";
 import {
+  createEvent,
+  deleteEvent,
   getAllEvents,
+  getAlumniEvents,
   getStudentEvents,
   registerForEvent,
   unregisterFromEvent,
+  updateEvent,
 } from "../controllers/eventController.js";
-import { verifyStudent } from "../middleware/authMiddleware.js";
+import { verifyAlumni, verifyStudent } from "../middleware/authMiddleware.js";
 
 
 const router = Router()
@@ -19,5 +23,16 @@ router.delete(
   verifyStudent,
   unregisterFromEvent
 );
+
+//alumni routes for events
+router.post('/alumni/events/create', verifyAlumni, createEvent);
+
+router.get('/alumni/events', verifyAlumni, getAlumniEvents);
+
+router.put('/alumni/events/:eventId/update',verifyAlumni,updateEvent);
+
+router.delete('/alumni/events/:eventId/delete', verifyAlumni,deleteEvent);
+
+
 
 export default router;
