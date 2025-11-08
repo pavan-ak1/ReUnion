@@ -17,7 +17,7 @@ import studentRoutes from "./routes/studentProfileRoutes.js"
 import eventRoutes from "./routes/eventRoutes.js"
 import jobsRoutes from "./routes/jobRoutes.js";
 import alumniRoutes from "./routes/alumniRoutes.js"
-
+import mentorRoutes from "./routes/mentorRoutes.js"
 
 const app = express();
 
@@ -40,6 +40,7 @@ app.use('/api/v1', studentRoutes);
 app.use('/api/v1',eventRoutes);
 app.use('/api/v1', jobsRoutes);
 app.use('/api/v1', alumniRoutes);
+app.use('/api/v1', mentorRoutes);
 
 
 
