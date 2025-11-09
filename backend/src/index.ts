@@ -10,6 +10,7 @@ import morgan from "morgan";
 
 //imports
 import { connectDb } from "./db/db.js";
+import { testConnection } from "./db/pool.js";
 import authRoutes from "./routes/authRoutes.js";
 import studentRoutes from "./routes/studentProfileRoutes.js";
 import eventRoutes from "./routes/eventRoutes.js";
@@ -19,15 +20,43 @@ import mentorRoutes from "./routes/mentorRoutes.js";
 
 const app = express();
 
-//middlewares
+// Middleware
 app.use(express.json());
-app.use(
-  cors({
-    origin:"http://localhost:3000",
-    credentials: true,
-  })
-);
+app.use(express.urlencoded({ extended: true }));
+
+// CORS Configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  // Add other allowed origins here in production
+];
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin as string)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header(
+      'Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+    );
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+  }
+  next();
+});
+
+// Cookie parser with secret
 app.use(cookieParser(process.env.JWT_SECRET));
+
+// Logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 //basic route
 app.get("/", (req: Request, res: Response) => {
@@ -46,7 +75,12 @@ const port = process.env.PORT || 5000;
 
 const start = async () => {
   try {
-    await connectDb();
+    console.log('Testing Neon DB connection...');
+    const isConnected = await testConnection();
+    if (!isConnected) {
+      throw new Error('Failed to connect to Neon DB. Check your connection string and network.');
+    }
+    
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
     });
