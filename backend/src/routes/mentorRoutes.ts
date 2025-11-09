@@ -1,3 +1,4 @@
+console.log("✅ mentorRoutes loaded successfully");
 import express from "express";
 import {
   setupMentorshipProfile,
@@ -11,6 +12,7 @@ import {
 import { verifyAlumni,verifyStudent } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
 
 //students routes
 

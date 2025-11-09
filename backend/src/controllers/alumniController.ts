@@ -27,16 +27,24 @@ export const getAlumniProfile  = async(req:Request, res:Response)=>{
     `;
 
     const result = await client.query(query, [user_id]);
-     if (result.rows.length === 0) {
-      return res
-        .status(StatusCodes.NOT_FOUND)
-        .json({ message: "Alumni profile not found" });
-    }
+    //  if (result.rows.length === 0) {
+    //   return res
+    //     .status(StatusCodes.NOT_FOUND)
+    //     .json({ message: "Alumni profile not found" });
+    // }
 
-    res.status(StatusCodes.OK).json({
-      message: "Alumni profile fetched successfully",
-      data: result.rows[0],
-    });
+    // res.status(StatusCodes.OK).json({
+    //   message: "Alumni profile fetched successfully",
+    //   data: result.rows[0],
+    // });
+    if (result.rows.length === 0) {
+  return res
+    .status(StatusCodes.NOT_FOUND)
+    .json({ message: "Alumni profile not found" });
+}
+
+res.status(StatusCodes.OK).json(result.rows[0]);
+
   } catch (error) {
     console.error("Error fetching alumni profile:", error);
     res

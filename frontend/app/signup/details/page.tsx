@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import api from "@/app/lib/api";
+import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
