@@ -270,7 +270,8 @@ backend/
 
 **Pavan A. Kustagi**
 B.Tech CSE, UVCE
-[LinkedIn](https://www.linkedin.com/in/pavan-a-kustagi/) · [GitHub](https://github.com/pavan-ak1)
+**Prateek Bhat**
+B.Tech CSE, UVCE
 
 ---
 
