@@ -1,143 +1,154 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff, LogIn } from "lucide-react";
+import Aurora from "@/components/Aurora";
 import api from "@/lib/api";
-import Cookies from "js-cookie";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-export default function SigninPage() {
+export default function SignInPage() {
+  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const [loading, setLoading] = useState(false);
 
-  // 🔹 Validate inputs
-  const validateForm = () => {
-    const newErrors: any = {};
-    if (!formData.email.trim()) newErrors.email = "Email is required.";
-    if (!formData.password.trim()) newErrors.password = "Password is required.";
-    return newErrors;
+  const handleChange = (e: any) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 🔹 Handle form submit
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
 
-    const validationErrors = validateForm();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      toast.error("Please fix the errors before submitting");
+    if (!formData.email || !formData.password) {
+      toast.error("Please fill in all fields");
       return;
     }
 
-    setErrors({});
     setLoading(true);
-
     try {
-      console.log('Attempting to sign in with:', formData.email);
-      
-      const res = await api.post("/signin", formData, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        withCredentials: true
-      });
-
-      if (!res.data) {
-        throw new Error('No response data received');
-      }
-      
-      console.log('Sign in successful:', {
-        status: res.status,
-        data: res.data,
-        hasToken: !!res.data.token,
-        headers: Object.fromEntries(
-          Object.entries(res.headers).filter(([key]) => 
-            ['set-cookie', 'authorization'].includes(key.toLowerCase())
-          )
-        )
-      });
-
-      // Store user data in localStorage for quick access
-      if (res.data.user) {
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-        // Store token if it's in the response
-        if (res.data.token) {
-          localStorage.setItem('token', res.data.token);
-        }
-      }
-
-      // Show success message
-      toast.success("Login successful! Redirecting...");
-      
-      // Add a small delay to ensure toast is visible
+      const res = await api.post("/signin", formData);
+      toast.success("Signed in successfully!");
       setTimeout(() => {
-        // Redirect to dashboard - the dashboard will handle the role-based redirection
-        window.location.href = "/dashboard";
-      }, 1000);
-
+        router.push("/dashboard"); // or "/home" — adjust as per your app
+      }, 1200);
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || "Invalid credentials or server error.";
-      setErrors({ general: msg });
-      toast.error(msg);
+      toast.error(err.response?.data?.message || "Invalid credentials");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔹 Handle input change
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-      <ToastContainer position="top-right" autoClose={2000} hideProgressBar={false} />
+    <section className="relative flex flex-col items-center justify-center min-h-[90vh] sm:min-h-screen overflow-hidden text-white px-6">
+      <ToastContainer />
 
-      <div className="w-96 bg-white p-8 rounded-2xl shadow-lg">
-        <h1 className="text-3xl font-semibold mb-6 text-center text-blue-700">Sign In</h1>
+      {/* Aurora Background */}
+      <div className="absolute inset-0 -z-10 bg-[#050505]">
+        <Aurora
+          colorStops={[
+            "#6A5AE0",
+            "#3A29FF",
+            "#FF94B4",
+            "#FF3232",
+          ]}
+          blend={0.9}
+          amplitude={1}
+          speed={0.5}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/80" />
+      </div>
 
-        {errors.general && (
-          <div className="text-red-600 text-sm text-center mb-3">{errors.general}</div>
-        )}
+      {/* Sign-In Card */}
+      <form
+        onSubmit={handleSubmit}
+        className="relative z-10 w-full max-w-md p-8 md:p-10
+        bg-white/10 backdrop-blur-2xl border border-white/10 rounded-2xl
+        shadow-[0_0_50px_rgba(56,189,248,0.15)] transition-all duration-500"
+      >
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
+          <p className="text-gray-400 text-sm">
+            Sign in to reconnect with your ReUnion network
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <input
-              name="email"
-              type="email"
-              placeholder="Email"
-              className={`w-full p-2 border rounded focus:outline-none ${
-                errors.email ? "border-red-500" : "border-gray-300"
-              }`}
-              onChange={handleChange}
-            />
-            {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
-          </div>
+        {/* Email */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Email Address
+          </label>
+          <input
+            name="email"
+            type="email"
+            required
+            placeholder="you@example.com"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-md
+              text-gray-100 placeholder-gray-500 focus:outline-none
+              focus:ring-2 focus:ring-gray-400/60 transition-all duration-200"
+          />
+        </div>
 
-          <div>
+        {/* Password */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-300 mb-1">
+            Password
+          </label>
+          <div className="relative">
             <input
               name="password"
-              type="password"
-              placeholder="Password"
-              className={`w-full p-2 border rounded focus:outline-none ${
-                errors.password ? "border-red-500" : "border-gray-300"
-              }`}
+              type={showPassword ? "text" : "password"}
+              required
+              placeholder="••••••••"
+              value={formData.password}
               onChange={handleChange}
+              className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-md
+                text-gray-100 placeholder-gray-500 focus:outline-none
+                focus:ring-2 focus:ring-gray-400/60 transition-all duration-200 pr-10"
             />
-            {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-3 text-gray-400 hover:text-white transition-colors"
+              aria-label="Toggle password visibility"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
+        </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full p-2 text-white rounded transition ${
-              loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-            }`}
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={loading}
+          className={`w-full flex items-center justify-center gap-2
+            px-6 py-3 rounded-full bg-white text-gray-900 font-semibold text-base 
+            hover:bg-gray-100 shadow-[0_0_20px_rgba(255,255,255,0.3)]
+            transition-transform duration-200 ease-out hover:scale-[1.03]
+            ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+        >
+          <LogIn size={18} />
+          {loading ? "Signing In..." : "Sign In"}
+        </button>
+
+        {/* Divider */}
+        <div className="my-6 border-t border-white/10" />
+
+        {/* Signup Link */}
+        <p className="text-center text-sm text-gray-400">
+          Don’t have an account?{" "}
+          <Link
+            href="/signup"
+            className="text-white hover:text-blue-300 font-semibold transition-colors"
           >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
-      </div>
-    </div>
+            Join Now
+          </Link>
+        </p>
+      </form>
+    </section>
   );
 }
