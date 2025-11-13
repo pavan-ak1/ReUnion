@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 
 interface HeaderProps {
   links?: { name: string; href: string }[];
   logoText?: string;
-  accent?: string;
+  accent?: string; // e.g. "from-indigo-400 to-blue-500"
   showAuth?: boolean;
   dashboardLinks?: boolean;
 }
@@ -20,31 +20,19 @@ export default function Header({
   dashboardLinks = false,
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [role, setRole] = useState<string | null>(null);
+  const [dashboardHome, setDashboardHome] = useState("/");
 
+  // Detect user role from storage
   useEffect(() => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      if (user?.role === "student" || user?.role === "alumni") {
-        setRole(user.role);
-      }
-    } catch {
-      setRole(null);
-    }
+    const role =
+      localStorage.getItem("role") ||
+      sessionStorage.getItem("role") ||
+      ""; // 'student' or 'alumni'
+
+    if (role === "student") setDashboardHome("/student/dashboard");
+    else if (role === "alumni") setDashboardHome("/alumni/dashboard");
+    else setDashboardHome("/");
   }, []);
-
-  const handleLogout = () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.href = "/signin";
-  };
-
-  const profileLink =
-    role === "student"
-      ? "/student/profile"
-      : role === "alumni"
-      ? "/alumni/profile"
-      : "/signin";
 
   return (
     <header
@@ -54,57 +42,65 @@ export default function Header({
       rounded-full shadow-[0_0_40px_rgba(255,255,255,0.1)]
       px-8 py-3 flex justify-between items-center transition-all duration-300"
     >
-      {/* === Logo === */}
-      <Link href="/" className="flex items-center space-x-2">
+      {/* === Logo Section === */}
+      <Link href={dashboardHome} className="flex items-center space-x-2">
         <span className="text-white font-semibold text-lg tracking-wide">
           {logoText}
         </span>
       </Link>
 
-      {/* === Desktop Nav === */}
+      {/* === Navigation Links (Desktop) === */}
       <nav className="hidden sm:flex items-center space-x-6">
         {links.map((link) => (
           <Link
             key={link.href}
-            href={link.href}
+            href={link.name === "Home" ? dashboardHome : link.href}
             className="text-gray-200 hover:text-white text-sm font-medium transition-colors"
           >
             {link.name}
           </Link>
         ))}
 
-        {/* === Dashboard Links === */}
         {dashboardLinks && (
           <>
             <Link
-              href={profileLink}
+              href={
+                dashboardHome.includes("student")
+                  ? "/student/profile"
+                  : "/alumni/profile"
+              }
               className="flex items-center justify-center gap-2
                 px-5 py-2.5 rounded-full 
                 bg-transparent hover:bg-white
                 border border-gray-200 hover:border-white
                 text-white hover:text-black
                 text-sm font-semibold
-                transition-all duration-300 hover:scale-105"
+                transition-all duration-300
+                hover:scale-105"
             >
               Profile
             </Link>
 
-            <button
-              onClick={handleLogout}
+            <Link
+              href="/signin"
+              onClick={() => {
+                localStorage.clear();
+                sessionStorage.clear();
+              }}
               className="flex items-center justify-center gap-2
                 px-5 py-2.5 rounded-full 
                 bg-transparent hover:bg-red-600
                 border border-red-600/40 hover:border-red-600
                 text-white hover:text-white
                 text-sm font-semibold
-                transition-all duration-300 hover:scale-105"
+                transition-all duration-300
+                hover:scale-105"
             >
               Logout
-            </button>
+            </Link>
           </>
         )}
 
-        {/* === Auth Buttons === */}
         {showAuth && (
           <>
             <Link
@@ -123,7 +119,7 @@ export default function Header({
         )}
       </nav>
 
-      {/* === Mobile Menu Button === */}
+      {/* === Mobile Menu Toggle === */}
       <button
         onClick={() => setMenuOpen(!menuOpen)}
         className="sm:hidden text-white"
@@ -142,7 +138,7 @@ export default function Header({
           {links.map((link) => (
             <Link
               key={link.href}
-              href={link.href}
+              href={link.name === "Home" ? dashboardHome : link.href}
               onClick={() => setMenuOpen(false)}
               className="text-gray-200 hover:text-cyan-400 text-base transition-colors"
             >
@@ -153,14 +149,22 @@ export default function Header({
           {dashboardLinks && (
             <>
               <Link
-                href={profileLink}
+                href={
+                  dashboardHome.includes("student")
+                    ? "/student/profile"
+                    : "/alumni/profile"
+                }
                 onClick={() => setMenuOpen(false)}
                 className="text-gray-200 hover:text-cyan-400 text-base transition-colors"
               >
                 Profile
               </Link>
               <button
-                onClick={handleLogout}
+                onClick={() => {
+                  localStorage.clear();
+                  sessionStorage.clear();
+                  window.location.href = "/signin";
+                }}
                 className="text-gray-200 hover:text-red-400 text-base transition-colors"
               >
                 Logout

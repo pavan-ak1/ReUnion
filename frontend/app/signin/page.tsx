@@ -14,47 +14,68 @@ export default function SignInPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
 
+  // Get return URL from query params
+  const getReturnUrl = () => {
+    if (typeof window === "undefined") return "";
+    const params = new URLSearchParams(window.location.search);
+    return params.get("returnUrl") || "";
+  };
+
   const handleChange = (e: any) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e: any) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!formData.email || !formData.password) {
-    toast.error("Please fill in all fields");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const res = await api.post("/signin", formData);
-
-    if (res.data?.user) {
-      // ✅ Save token and user to localStorage for DashboardRedirect to use
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-
-      toast.success("Signed in successfully!");
-
-      // ✅ Redirect based on role immediately
-      const role = res.data.user.role;
-      setTimeout(() => {
-        if (role === "alumni") router.push("/alumni/dashboard");
-        else if (role === "student") router.push("/student/dashboard");
-        else router.push("/dashboard");
-      }, 1000);
-    } else {
-      toast.error("Invalid server response");
+    if (!formData.email || !formData.password) {
+      toast.error("Please fill in all fields");
+      return;
     }
-  } catch (err: any) {
-    toast.error(err.response?.data?.message || "Invalid credentials");
-  } finally {
-    setLoading(false);
-  }
-};
 
+    setLoading(true);
+
+    try {
+      const res = await api.post("/signin", formData);
+
+      if (res.data?.user) {
+        const { token, user } = res.data;
+
+        // ✅ Store authentication details
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+
+        // ✅ NEW: store role separately for Header-based redirects
+        if (user.role) {
+          localStorage.setItem("role", user.role);
+        }
+
+        toast.success("Signed in successfully!");
+
+        // Redirect based on returnUrl or role
+        const role = user.role;
+        const returnUrl = getReturnUrl();
+
+        setTimeout(() => {
+          if (returnUrl) {
+            window.location.href = returnUrl;
+          } else if (role === "alumni") {
+            router.push("/alumni/dashboard");
+          } else if (role === "student") {
+            router.push("/student/dashboard");
+          } else {
+            router.push("/dashboard");
+          }
+        }, 1000);
+      } else {
+        toast.error("Invalid server response");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Invalid credentials");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <section className="relative flex flex-col items-center justify-center min-h-[90vh] sm:min-h-screen overflow-hidden text-white px-6">
@@ -63,12 +84,7 @@ export default function SignInPage() {
       {/* Aurora Background */}
       <div className="absolute inset-0 -z-10 bg-[#050505]">
         <Aurora
-          colorStops={[
-            "#6A5AE0",
-            "#3A29FF",
-            "#FF94B4",
-            "#FF3232",
-          ]}
+          colorStops={["#6A5AE0", "#3A29FF", "#FF94B4", "#FF3232"]}
           blend={0.9}
           amplitude={1}
           speed={0.5}

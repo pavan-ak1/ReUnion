@@ -10,6 +10,7 @@ import "react-toastify/dist/ReactToastify.css";
 export default function StudentEventsPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [registeringEvent, setRegisteringEvent] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -26,11 +27,25 @@ export default function StudentEventsPage() {
   }, []);
 
   const handleRegister = async (eventId: number) => {
+    setRegisteringEvent(eventId);
     try {
       await api.post("/student/events/register", { event_id: eventId });
       toast.success("Successfully registered for the event!");
-    } catch (err) {
-      toast.error("Could not register for event.");
+      // Update the UI to show registration status
+      setEvents(prevEvents => 
+        prevEvents.map(event => 
+          event.event_id === eventId 
+            ? { ...event, isRegistered: true } 
+            : event
+        )
+      );
+    } catch (err: any) {
+      // The API interceptor will handle 401 redirects
+      if (err.response?.status !== 401) {
+        toast.error(err.response?.data?.message || "Could not register for event.");
+      }
+    } finally {
+      setRegisteringEvent(null);
     }
   };
 
@@ -100,9 +115,20 @@ export default function StudentEventsPage() {
 
                   <button
                     onClick={() => handleRegister(event.event_id)}
-                    className="mt-4 sm:mt-0 px-5 py-2 border border-white/20 rounded-md text-sm text-white hover:bg-white hover:text-black transition-all duration-200"
+                    disabled={registeringEvent === event.event_id || event.isRegistered}
+                    className={`mt-4 sm:mt-0 px-5 py-2 border rounded-md text-sm transition-all duration-200 ${
+                      event.isRegistered 
+                        ? 'border-green-500 text-green-500 cursor-default' 
+                        : registeringEvent === event.event_id
+                          ? 'border-gray-500 text-gray-500 cursor-wait'
+                          : 'border-white/20 text-white hover:bg-white hover:text-black'
+                    }`}
                   >
-                    Register
+                    {event.isRegistered 
+                      ? 'Registered'
+                      : registeringEvent === event.event_id 
+                        ? 'Registering...'
+                        : 'Register'}
                   </button>
                 </div>
 

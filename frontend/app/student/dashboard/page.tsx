@@ -11,24 +11,23 @@ import "react-toastify/dist/ReactToastify.css";
 export default function StudentDashboard() {
   const [events, setEvents] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
-  const [mentorships, setMentorships] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      setLoading(true);
       try {
-        const [eventsRes, jobsRes, mentorshipRes] = await Promise.all([
+        const [e, j, r] = await Promise.all([
           api.get("/events"),
           api.get("/jobs"),
-          api.get("/mentorship/requests"),
+          api.get("/student/mentorship/requests"),
         ]);
-        setEvents(eventsRes.data.data || []);
-        setJobs(jobsRes.data.data || []);
-        setMentorships(mentorshipRes.data.data || []);
+        setEvents(e.data.data || []);
+        setJobs(j.data.data || []);
+        setRequests(r.data.data || []);
       } catch (err) {
-        console.error("Error fetching student dashboard:", err);
-        toast.error("Failed to load dashboard data.");
+        console.error("Error fetching dashboard data:", err);
+        toast.error("Failed to load dashboard data");
       } finally {
         setLoading(false);
       }
@@ -36,29 +35,24 @@ export default function StudentDashboard() {
     fetchDashboardData();
   }, []);
 
-  if (loading) {
+  if (loading)
     return (
       <div className="flex justify-center items-center h-screen bg-[#0B0B0B] text-white">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-300"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
       </div>
     );
-  }
 
   return (
     <div className="relative min-h-screen text-white overflow-hidden">
       {/* === Aurora Background === */}
       <div className="absolute inset-0 -z-10 bg-[#0B0B0B]">
         <Aurora
-          colorStops={[
-            "#2563eb", // blue
-            "#b5aada", // soft violet
-            "#ffffff", // white highlights
-          ]}
+          colorStops={["#2563eb", "#6A5AE0", "#b5aada", "#FFFFFF"]}
           blend={0.85}
-          amplitude={1.3}
+          amplitude={1.4}
           speed={0.25}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0B0B0B]/40 to-[#0B0B0B]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0B0B0B]/60 to-[#0B0B0B]" />
       </div>
 
       {/* === Header === */}
@@ -68,23 +62,21 @@ export default function StudentDashboard() {
         dashboardLinks
       />
 
-      {/* === Dashboard Main === */}
+      {/* === Main Content === */}
       <main className="relative z-10 max-w-5xl mx-auto px-6 py-24 sm:py-32 space-y-16">
-        {/* === Title === */}
+        {/* Page Title */}
         <div className="text-center">
           <h1 className="text-5xl sm:text-5xl font-bold mb-2 text-white">
             Student Dashboard
           </h1>
           <p className="text-gray-400 text-sm">
-            Stay updated with events, opportunities, and mentorships.
+            Manage your events, job applications, and mentorship connections.
           </p>
         </div>
 
         {/* === Events Section === */}
         <section className="border-t border-white pt-8">
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Upcoming Events
-          </h2>
+          <h2 className="text-3xl font-bold text-white mb-4">Upcoming Events</h2>
 
           {events.length > 0 ? (
             <ul className="space-y-3">
@@ -96,14 +88,14 @@ export default function StudentDashboard() {
                   <div>
                     <p className="font-medium text-white">{event.event_name}</p>
                     <p className="text-sm text-gray-400">
-                      {new Date(event.date).toDateString()}
+                      {event.location} • {new Date(event.date).toDateString()}
                     </p>
                   </div>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-400 italic">No upcoming events found.</p>
+            <p className="text-gray-400 italic">No upcoming events available.</p>
           )}
 
           <div className="mt-4 text-sm space-x-4">
@@ -113,14 +105,18 @@ export default function StudentDashboard() {
             >
               View All Events →
             </Link>
+            <Link
+              href="/student/events/registered"
+              className="text-gray-400 hover:underline"
+            >
+              My Registered Events →
+            </Link>
           </div>
         </section>
 
         {/* === Jobs Section === */}
         <section className="border-t border-white pt-8">
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Job Opportunities
-          </h2>
+          <h2 className="text-3xl font-bold text-white mb-4">Job Opportunities</h2>
 
           {jobs.length > 0 ? (
             <ul className="space-y-3">
@@ -130,17 +126,11 @@ export default function StudentDashboard() {
                   <p className="text-sm text-gray-400 mb-2">
                     {job.company} · {job.location}
                   </p>
-                  <Link
-                    href={`/student/jobs/${job.job_id}`}
-                    className="text-green-400 hover:underline text-sm font-medium"
-                  >
-                    View Details →
-                  </Link>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-gray-400 italic">No job openings currently.</p>
+            <p className="text-gray-400 italic">No jobs available.</p>
           )}
 
           <div className="mt-4 text-sm space-x-4">
@@ -148,7 +138,13 @@ export default function StudentDashboard() {
               href="/student/jobs"
               className="text-green-400 hover:underline font-medium"
             >
-              Explore All Jobs →
+              Explore Jobs →
+            </Link>
+            <Link
+              href="/student/jobs/applied"
+              className="text-gray-400 hover:underline"
+            >
+              My Applications →
             </Link>
           </div>
         </section>
@@ -157,9 +153,20 @@ export default function StudentDashboard() {
         <section className="border-t border-white pt-8 pb-10">
           <h2 className="text-3xl font-bold text-white mb-4">Mentorship</h2>
 
-          <p className="text-gray-300 mb-6">
-            Connect with alumni mentors to guide your academic and career path.
-          </p>
+          {requests.length > 0 ? (
+            <p className="text-gray-300 mb-4">
+              You have{" "}
+              <span className="font-semibold text-white">
+                {requests.filter((r) => r.status === "Pending").length}
+              </span>{" "}
+              pending mentorship request
+              {requests.filter((r) => r.status === "Pending").length !== 1 && "s"}.
+            </p>
+          ) : (
+            <p className="text-gray-400 mb-4">
+              Connect with alumni mentors for guidance and opportunities.
+            </p>
+          )}
 
           <div className="text-sm space-y-3">
             <Link

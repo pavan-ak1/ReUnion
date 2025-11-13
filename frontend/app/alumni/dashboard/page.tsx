@@ -9,20 +9,31 @@ import Aurora from "@/components/Aurora";
 export default function AlumniDashboard() {
   const [events, setEvents] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
+        setError(null);
+        
         const [e, j] = await Promise.all([
           api.get("/alumni/events"),
           api.get("/alumni/jobs"),
         ]);
+        
         setEvents(e.data.data || []);
         setJobs(j.data.data || []);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error fetching dashboard data:", err);
+        setError("Failed to load dashboard data. " + 
+          (err.response?.data?.message || "Please try again later."));
+      } finally {
+        setLoading(false);
       }
     };
+    
     fetchData();
   }, []);
 
@@ -48,8 +59,32 @@ export default function AlumniDashboard() {
   accent="from-violet-400 to-blue-500"
   dashboardLinks />
 
-      {/* === Dashboard Content === */}
-     <main className="relative z-10 max-w-5xl mx-auto px-6 py-24 sm:py-32 space-y-16">
+      {/* Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-400"></div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !loading && (
+        <div className="max-w-5xl mx-auto px-6 py-24">
+          <div className="bg-red-900/50 border border-red-500 text-red-100 px-6 py-4 rounded-lg">
+            <p className="font-medium">Error Loading Dashboard</p>
+            <p className="text-sm mt-1">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-3 px-4 py-2 bg-red-700 hover:bg-red-600 rounded-md text-sm transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard Content */}
+      {!loading && !error && (
+        <main className="relative z-10 max-w-5xl mx-auto px-6 py-24 sm:py-32 space-y-16">
   {/* Page Title */}
   <div className="text-center">
     <h1 className="text-5xl sm:text-5xl font-bold mb-2 text-white">
@@ -165,7 +200,8 @@ export default function AlumniDashboard() {
       </Link>
     </div>
   </section>
-</main>
+        </main>
+      )}
     </div>
   );
 }
