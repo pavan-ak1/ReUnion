@@ -1,6 +1,11 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import Header from "@/components/Header";
+import Aurora from "@/components/Aurora";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function RegisteredEventsPage() {
   const [events, setEvents] = useState<any[]>([]);
@@ -12,7 +17,7 @@ export default function RegisteredEventsPage() {
         const res = await api.get("/student/events");
         setEvents(res.data.data || res.data);
       } catch (err) {
-        console.error("Error fetching registered events:", err);
+        toast.error("Failed to load registered events");
       } finally {
         setLoading(false);
       }
@@ -24,46 +29,93 @@ export default function RegisteredEventsPage() {
     try {
       await api.delete(`/student/events/unregister/${eventId}`);
       setEvents((prev) => prev.filter((e) => e.event_id !== eventId));
-      alert("Event unregistered successfully");
+      toast.success("Event unregistered successfully");
     } catch (err) {
-      console.error(err);
-      alert("Unable to unregister from event.");
+      toast.error("Unable to unregister from event");
     }
   };
 
-  if (loading) return <p className="p-6 text-gray-500">Loading your events...</p>;
+  if (loading)
+    return (
+      <div className="flex justify-center items-center h-screen bg-[#0B0B0B] text-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-400"></div>
+      </div>
+    );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="p-6 bg-white shadow flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-blue-700">🗓️ My Events</h1>
-        <a href="/student/events" className="text-blue-600 underline">
-          Browse All Events →
-        </a>
+    <div className="relative min-h-screen text-white overflow-hidden">
+      {/* === Aurora Background === */}
+      <div className="absolute inset-0 -z-10 bg-[#0B0B0B]">
+        <Aurora
+          colorStops={["#3A29FF", "#6A5AE0", "#2563eb", "#c51616"]}
+          blend={0.85}
+          amplitude={1.4}
+          speed={0.25}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0B0B0B]/60 to-[#0B0B0B]" />
       </div>
 
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* === Header === */}
+      <Header
+        logoText="ReUnion Student"
+        accent="from-cyan-400 to-blue-500"
+        dashboardLinks
+      />
+
+      {/* === Main Content === */}
+      <main className="relative z-10 max-w-6xl mx-auto px-6 py-24 sm:py-32">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl sm:text-6xl font-extrabold mb-4">
+            My Registered Events
+          </h1>
+          <p className="text-gray-400 text-lg mb-8">
+            Here are all the events you’ve registered for.
+          </p>
+
+          <a
+            href="/student/events"
+            className="inline-block px-6 py-2 border border-white/20 rounded-md text-sm text-white hover:bg-white hover:text-black transition-all duration-200"
+          >
+            Browse All Events →
+          </a>
+        </div>
+
+        {/* === Events List === */}
         {events.length > 0 ? (
-          events.map((event) => (
-            <div key={event.event_id} className="bg-white p-4 rounded-xl shadow">
-              <h3 className="text-lg font-semibold text-blue-700">
-                {event.event_name}
-              </h3>
-              <p className="text-gray-500 text-sm mb-2">
-                {new Date(event.date).toDateString()}
-              </p>
-              <button
-                onClick={() => handleUnregister(event.event_id)}
-                className="bg-red-600 text-white px-4 py-1.5 rounded hover:bg-red-700 transition"
+          <div className="space-y-10">
+            {events.map((event) => (
+              <div
+                key={event.event_id}
+                className="border-t border-white/10 pt-6 text-left"
               >
-                Unregister
-              </button>
-            </div>
-          ))
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-white mb-1">
+                      {event.event_name}
+                    </h2>
+                    <p className="text-gray-400 text-sm">
+                      {new Date(event.date).toDateString()}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => handleUnregister(event.event_id)}
+                    className="mt-4 sm:mt-0 px-5 py-2 border border-red-400 text-red-400 rounded-md hover:bg-red-500 hover:text-white transition-all duration-200"
+                  >
+                    Unregister
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
-          <p className="text-gray-500 col-span-full">You haven’t registered for any events yet.</p>
+          <p className="text-center text-gray-400 mt-20 text-lg">
+            You haven’t registered for any events yet.
+          </p>
         )}
-      </div>
+      </main>
+
+      <ToastContainer position="bottom-right" autoClose={2000} />
     </div>
   );
 }

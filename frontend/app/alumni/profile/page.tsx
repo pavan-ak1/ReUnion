@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import { toast } from "react-toastify";
-import 'react-toastify/dist/ReactToastify.css';
+import { toast, ToastContainer } from "react-toastify";
+import Aurora from "@/components/Aurora";
+import Header from "@/components/Header";
+import "react-toastify/dist/ReactToastify.css";
 
 interface AlumniProfile {
   name: string;
@@ -22,17 +24,18 @@ export default function AlumniProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
 
+  const fetchProfile = async () => {
+    try {
+      const res = await api.get("/alumni/profile");
+      setProfile(res.data);
+    } catch (err) {
+      toast.error("Failed to load profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await api.get("/alumni/profile");
-        setProfile(res.data);
-      } catch (err) {
-        console.error("Failed to load profile:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchProfile();
   }, []);
 
@@ -41,221 +44,227 @@ export default function AlumniProfilePage() {
     setProfile({ ...profile, [e.target.name]: e.target.value });
   };
 
-  const fetchProfile = async () => {
-    try {
-      const res = await api.get("/alumni/profile");
-      setProfile(res.data);
-    } catch (err) {
-      console.error("Failed to load profile:", err);
-      toast.error("Failed to load profile");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await api.put("/alumni/profile/update", profile);
       toast.success("Profile updated successfully!");
       setEditMode(false);
-      await fetchProfile(); // Refresh the profile data
-    } catch (err) {
-      console.error("Update failed:", err);
+      await fetchProfile();
+    } catch {
       toast.error("Failed to update profile");
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div></div>;
-  if (!profile) return <p className="p-6 text-red-500">Profile not found. Please try again later.</p>;
+  if (loading)
+    return (
+      <div className="flex justify-center items-center h-screen bg-[#0B0B0B] text-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400"></div>
+      </div>
+    );
+
+  if (!profile)
+    return (
+      <div className="p-6 text-center text-red-400">
+        Profile not found. Please try again later.
+      </div>
+    );
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Alumni Profile</h1>
-        {!editMode && (
-          <button
-            onClick={() => setEditMode(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
-          >
-            Edit Profile
-          </button>
-        )}
+    <div className="relative min-h-screen text-white overflow-hidden">
+      {/* Aurora Background */}
+      <div className="absolute inset-0 -z-10 bg-[#0B0B0B]">
+        <Aurora
+          colorStops={["#c51616", "#FFFFFF", "#b5aada"]}
+          blend={0.85}
+          amplitude={1.3}
+          speed={0.3}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0B0B0B]/60 to-[#0B0B0B]" />
       </div>
 
-      {!editMode ? (
-        <div className="bg-white shadow rounded-lg p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-gray-500 text-sm">Full Name</p>
-              <p className="font-medium">{profile.name}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Email</p>
-              <p className="font-medium">{profile.email}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Phone</p>
-              <p className="font-medium">{profile.phone || "-"}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Graduation Year</p>
-              <p className="font-medium">{profile.graduation_year || "-"}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Degree</p>
-              <p className="font-medium">{profile.degree || "-"}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Department</p>
-              <p className="font-medium">{profile.department || "-"}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Current Position</p>
-              <p className="font-medium">{profile.current_position || "-"}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Company</p>
-              <p className="font-medium">{profile.company || "-"}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-sm">Location</p>
-              <p className="font-medium">{profile.location || "-"}</p>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <form onSubmit={handleUpdate} className="space-y-4">
-          <div className="bg-white shadow rounded-lg p-6 space-y-4">
-            <h2 className="text-lg font-medium">Personal Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={profile.name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={profile.email}
-                  disabled
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={profile.phone || ""}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Graduation Year *</label>
-                <input
-                  type="number"
-                  name="graduation_year"
-                  value={profile.graduation_year || ""}
-                  onChange={handleChange}
-                  min="1900"
-                  max={new Date().getFullYear() + 5}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+      {/* Header */}
+      <Header
+        logoText="ReUnion Alumni"
+        accent="from-violet-400 to-blue-500"
+        dashboardLinks
+      />
+
+      {/* Main Content */}
+      <main className="relative z-10 max-w-4xl mx-auto px-6 py-28 sm:py-36 text-center">
+        {/* --- MODIFICATION: LARGER NAME --- */}
+        <h1 className="text-6xl sm:text-7xl md:text-8xl font-extrabold mb-12">
+          {profile.name}
+        </h1>
+
+        {!editMode ? (
+          <>
+            {/* --- MODIFICATION: PREMIUM DETAIL LIST --- */}
+            <div className="max-w-xl mx-auto text-left border-t border-white/20">
+              <ProfileDetailRow label="Email" value={profile.email} />
+              <ProfileDetailRow label="Phone" value={profile.phone} />
+              <ProfileDetailRow
+                label="Profession"
+                value={
+                  profile.current_position && profile.company
+                    ? `${profile.current_position} @ ${profile.company}`
+                    : profile.current_position
+                }
+              />
+              <ProfileDetailRow
+                label="Education"
+                value={
+                  profile.degree && profile.department
+                    ? `${profile.degree} in ${profile.department}`
+                    : profile.degree
+                }
+              />
+              <ProfileDetailRow
+                label="Graduation Year"
+                value={profile.graduation_year?.toString()}
+              />
+              <ProfileDetailRow label="Location" value={profile.location} />
             </div>
 
-            <h2 className="text-lg font-medium mt-6">Education</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Degree *</label>
-                <input
-                  type="text"
-                  name="degree"
-                  value={profile.degree || ""}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
-                <input
-                  type="text"
-                  name="department"
-                  value={profile.department || ""}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <div className="mt-12">
+              <button
+                onClick={() => setEditMode(true)}
+                className="px-6 py-2 bg-white text-gray-900 font-semibold rounded-md hover:bg-gray-100 border border-white/20 transition-colors duration-200"
+              >
+                Edit Profile
+              </button>
             </div>
+          </>
+        ) : (
+          <form
+            onSubmit={handleUpdate}
+            className="mt-10 space-y-6 max-w-xl mx-auto text-left"
+          >
+            <EditableField
+              label="Full Name"
+              name="name"
+              value={profile.name}
+              onChange={handleChange}
+              required
+            />
+            <EditableField
+              label="Phone"
+              name="phone"
+              value={profile.phone || ""}
+              onChange={handleChange}
+            />
+            <EditableField
+              label="Graduation Year"
+              name="graduation_year"
+              value={profile.graduation_year?.toString() || ""}
+              onChange={handleChange}
+              type="number"
+            />
+            <EditableField
+              label="Degree"
+              name="degree"
+              value={profile.degree || ""}
+              onChange={handleChange}
+            />
+            <EditableField
+              label="Department"
+              name="department"
+              value={profile.department || ""}
+              onChange={handleChange}
+            />
+            <EditableField
+              label="Current Position"
+              name="current_position"
+              value={profile.current_position || ""}
+              onChange={handleChange}
+            />
+            <EditableField
+              label="Company"
+              name="company"
+              value={profile.company || ""}
+              onChange={handleChange}
+            />
+            <EditableField
+              label="Location"
+              name="location"
+              value={profile.location || ""}
+              onChange={handleChange}
+            />
 
-            <h2 className="text-lg font-medium mt-6">Professional Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current Position</label>
-                <input
-                  type="text"
-                  name="current_position"
-                  value={profile.current_position || ""}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                <input
-                  type="text"
-                  name="company"
-                  value={profile.company || ""}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                <input
-                  type="text"
-                  name="location"
-                  value={profile.location || ""}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <div className="flex justify-center gap-4 pt-8">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditMode(false);
+                  fetchProfile();
+                }}
+                className="px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-md text-gray-300 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2 bg-white text-gray-900 font-semibold rounded-md hover:bg-gray-100 border border-white/20 transition-colors duration-200"
+              >
+                Save Changes
+              </button>
             </div>
-          </div>
+          </form>
+        )}
+      </main>
 
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
-              type="button"
-              onClick={() => {
-                setEditMode(false);
-                // Reset form if needed
-                fetchProfile();
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Save Changes
-            </button>
-          </div>
-        </form>
-      )}
+      <ToastContainer position="bottom-right" autoClose={2000} theme="dark" />
+    </div>
+  );
+}
+
+/* === Editable Field === */
+function EditableField({
+  label,
+  name,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  type?: string;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <label className="block text-sm text-gray-400 mb-1">{label}</label>
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        required={required}
+        className="w-full px-4 py-2 bg-white/10 border border-white/10 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-all"
+      />
+    </div>
+  );
+}
+
+/* === NEW COMPONENT: Profile Detail Row === */
+function ProfileDetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | number;
+}) {
+  if (!value) return null; // Don't render empty fields
+
+  return (
+    <div className="flex justify-between items-center py-5 border-b border-white/20">
+      <span className="text-gray-400 text-sm capitalize">{label}</span>
+      <span className="text-white text-base font-medium text-right">
+        {value}
+      </span>
     </div>
   );
 }

@@ -19,26 +19,42 @@ export default function SignInPage() {
   };
 
   const handleSubmit = async (e: any) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!formData.email || !formData.password) {
-      toast.error("Please fill in all fields");
-      return;
-    }
+  if (!formData.email || !formData.password) {
+    toast.error("Please fill in all fields");
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const res = await api.post("/signin", formData);
+  setLoading(true);
+
+  try {
+    const res = await api.post("/signin", formData);
+
+    if (res.data?.user) {
+      // ✅ Save token and user to localStorage for DashboardRedirect to use
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+
       toast.success("Signed in successfully!");
+
+      // ✅ Redirect based on role immediately
+      const role = res.data.user.role;
       setTimeout(() => {
-        router.push("/dashboard"); // or "/home" — adjust as per your app
-      }, 1200);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Invalid credentials");
-    } finally {
-      setLoading(false);
+        if (role === "alumni") router.push("/alumni/dashboard");
+        else if (role === "student") router.push("/student/dashboard");
+        else router.push("/dashboard");
+      }, 1000);
+    } else {
+      toast.error("Invalid server response");
     }
-  };
+  } catch (err: any) {
+    toast.error(err.response?.data?.message || "Invalid credentials");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <section className="relative flex flex-col items-center justify-center min-h-[90vh] sm:min-h-screen overflow-hidden text-white px-6">

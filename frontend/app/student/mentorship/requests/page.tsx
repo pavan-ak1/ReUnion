@@ -1,8 +1,12 @@
-//sent mentorship requests
 "use client";
+
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import Link from "next/link";
+import Header from "@/components/Header";
+import Aurora from "@/components/Aurora";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function StudentRequestsPage() {
   const [requests, setRequests] = useState<any[]>([]);
@@ -13,8 +17,8 @@ export default function StudentRequestsPage() {
       try {
         const res = await api.get("/student/mentorship/requests");
         setRequests(res.data.data || res.data);
-      } catch (err) {
-        console.error("Error fetching mentorship requests:", err);
+      } catch {
+        toast.error("Failed to load mentorship requests");
       } finally {
         setLoading(false);
       }
@@ -22,50 +26,100 @@ export default function StudentRequestsPage() {
     fetchRequests();
   }, []);
 
-  if (loading) return <p className="p-6 text-gray-500">Loading requests...</p>;
+  if (loading)
+    return (
+      <div className="flex justify-center items-center h-screen bg-[#0B0B0B] text-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-400"></div>
+      </div>
+    );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="p-6 bg-white shadow flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-purple-700">📬 My Mentorship Requests</h1>
-        <Link href="/student/mentorship/mentors" className="text-purple-600 underline">
-          Find More Mentors →
-        </Link>
+    <div className="relative min-h-screen text-white overflow-hidden">
+      {/* === Aurora Background === */}
+      <div className="absolute inset-0 -z-10 bg-[#0B0B0B]">
+        <Aurora
+          colorStops={["#6A5AE0", "#b5aada", "#a78bfa", "#8b5cf6"]}
+          blend={0.85}
+          amplitude={1.4}
+          speed={0.25}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0B0B0B]/60 to-[#0B0B0B]" />
       </div>
 
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* === Header === */}
+      <Header
+        logoText="ReUnion Student"
+        accent="from-violet-400 to-purple-500"
+        dashboardLinks
+      />
+
+      {/* === Main Content === */}
+      <main className="relative z-10 max-w-6xl mx-auto px-6 py-24 sm:py-32">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl sm:text-6xl font-extrabold mb-4">
+            My Mentorship Requests
+          </h1>
+          <p className="text-gray-400 text-lg mb-8">
+            Track the status of your mentorship requests.
+          </p>
+
+          <Link
+            href="/student/mentorship/mentors"
+            className="inline-block px-6 py-2 border border-white/20 rounded-md text-sm text-white hover:bg-white hover:text-black transition-all duration-200"
+          >
+            Find More Mentors →
+          </Link>
+        </div>
+
+        {/* === Requests List === */}
         {requests.length > 0 ? (
-          requests.map((req) => (
-            <div key={req.request_id} className="bg-white p-4 rounded-xl shadow">
-              <h3 className="text-lg font-semibold text-purple-700">
-                {req.mentor_name}
-              </h3>
-              <p className="text-gray-600 text-sm">{req.mentor_email}</p>
-              <p className="text-gray-500 text-sm mt-1">
-                Requested: {new Date(req.requested_at).toDateString()}
-              </p>
-              <p className="text-sm mt-2">
-                Status:{" "}
-                <span
-                  className={
-                    req.status === "Accepted"
-                      ? "text-green-600"
-                      : req.status === "Rejected"
-                      ? "text-red-600"
-                      : "text-yellow-600"
-                  }
-                >
-                  {req.status}
-                </span>
-              </p>
-            </div>
-          ))
+          <div className="space-y-10">
+            {requests.map((req) => (
+              <div
+                key={req.request_id}
+                className="border-t border-white/10 pt-6 text-left"
+              >
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-white mb-1">
+                      {req.mentor_name}
+                    </h2>
+                    <p className="text-gray-400 text-sm">{req.mentor_email}</p>
+                    <p className="text-gray-400 text-sm mt-2">
+                      Requested on:{" "}
+                      {new Date(req.requested_at).toDateString()}
+                    </p>
+                  </div>
+
+                  <div
+                    className={`mt-4 sm:mt-0 px-4 py-2 rounded-md text-sm font-semibold border ${
+                      req.status === "Accepted"
+                        ? "border-green-400 text-green-400 bg-green-400/10"
+                        : req.status === "Rejected"
+                        ? "border-red-400 text-red-400 bg-red-400/10"
+                        : "border-yellow-400 text-yellow-400 bg-yellow-400/10"
+                    }`}
+                  >
+                    {req.status || "Pending"}
+                  </div>
+                </div>
+
+                {req.notes && (
+                  <p className="text-gray-300 mt-4 leading-relaxed max-w-3xl">
+                    Note: {req.notes}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
         ) : (
-          <p className="text-gray-500 col-span-full">
+          <p className="text-center text-gray-400 mt-20 text-lg">
             You haven’t sent any mentorship requests yet.
           </p>
         )}
-      </div>
+      </main>
+
+      <ToastContainer position="bottom-right" autoClose={2000} />
     </div>
   );
 }

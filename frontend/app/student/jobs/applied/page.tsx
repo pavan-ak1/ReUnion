@@ -1,7 +1,12 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import Link from "next/link";
+import Header from "@/components/Header";
+import Aurora from "@/components/Aurora";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function AppliedJobsPage() {
   const [applications, setApplications] = useState<any[]>([]);
@@ -13,7 +18,7 @@ export default function AppliedJobsPage() {
         const res = await api.get("/student/jobs/applied");
         setApplications(res.data.data || res.data);
       } catch (err) {
-        console.error("Error fetching applied jobs:", err);
+        toast.error("Failed to load applied jobs");
       } finally {
         setLoading(false);
       }
@@ -21,50 +26,109 @@ export default function AppliedJobsPage() {
     fetchApplications();
   }, []);
 
-  if (loading) return <p className="p-6 text-gray-500">Loading your applications...</p>;
+  if (loading)
+    return (
+      <div className="flex justify-center items-center h-screen bg-[#0B0B0B] text-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-400"></div>
+      </div>
+    );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="p-6 bg-white shadow flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-green-700">🧾 My Applications</h1>
-        <Link href="/student/jobs" className="text-green-600 underline">
-          Browse More Jobs →
-        </Link>
+    <div className="relative min-h-screen text-white overflow-hidden">
+      {/* === Aurora Background === */}
+      <div className="absolute inset-0 -z-10 bg-[#0B0B0B]">
+        <Aurora
+          colorStops={["#f1f2ca", "#f9ee71", "#f3e11b"]}
+          blend={0.85}
+          amplitude={1.4}
+          speed={0.25}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0B0B0B]/60 to-[#0B0B0B]" />
       </div>
 
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* === Header === */}
+      <Header
+        logoText="ReUnion Student"
+        accent="from-cyan-400 to-blue-500"
+        dashboardLinks
+      />
+
+      {/* === Main Content === */}
+      <main className="relative z-10 max-w-6xl mx-auto px-6 py-24 sm:py-32">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl sm:text-6xl font-extrabold mb-4">
+            My Applications
+          </h1>
+          <p className="text-gray-400 text-lg mb-8">
+            Track the status of your job applications.
+          </p>
+
+          <Link
+            href="/student/jobs"
+            className="inline-block px-6 py-2 border border-white/20 rounded-md text-sm text-white hover:bg-white hover:text-black transition-all duration-200"
+          >
+            Browse More Jobs →
+          </Link>
+        </div>
+
+        {/* === Applications List === */}
         {applications.length > 0 ? (
-          applications.map((app) => (
-            <div key={app.job_id} className="bg-white p-4 rounded-xl shadow">
-              <h3 className="text-lg font-semibold text-green-700">
-                {app.job_title}
-              </h3>
-              <p className="text-gray-600 text-sm">{app.company}</p>
-              <p className="text-gray-500 text-sm mb-2">{app.location}</p>
-              <p className="text-sm">
-                Status:{" "}
-                <span
-                  className={
-                    app.status === "Hired"
-                      ? "text-green-600"
-                      : app.status === "Rejected"
-                      ? "text-red-600"
-                      : app.status === "Shortlisted"
-                      ? "text-blue-600"
-                      : "text-gray-600"
-                  }
-                >
-                  {app.status}
-                </span>
-              </p>
-            </div>
-          ))
+          <div className="space-y-10">
+            {applications.map((app) => (
+              <div
+                key={app.job_id}
+                className="border-t border-white/10 pt-6 text-left"
+              >
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-white mb-1">
+                      {app.job_title}
+                    </h2>
+                    <p className="text-gray-400 text-sm">
+                      {app.company} • {app.location || "—"}
+                    </p>
+                  </div>
+
+                  <div
+                    className={`mt-4 sm:mt-0 px-4 py-2 rounded-md text-sm font-semibold border ${
+                      app.status === "Hired"
+                        ? "border-green-400 text-green-400 bg-green-400/10"
+                        : app.status === "Rejected"
+                        ? "border-red-400 text-red-400 bg-red-400/10"
+                        : app.status === "Shortlisted"
+                        ? "border-blue-400 text-blue-400 bg-blue-400/10"
+                        : "border-gray-500 text-gray-400 bg-gray-500/10"
+                    }`}
+                  >
+                    {app.status || "Pending"}
+                  </div>
+                </div>
+
+                {app.job_description && (
+                  <p className="text-gray-300 mt-4 leading-relaxed max-w-3xl">
+                    {app.job_description.length > 200
+                      ? `${app.job_description.slice(0, 200)}...`
+                      : app.job_description}
+                  </p>
+                )}
+
+                {app.application_date && (
+                  <p className="text-xs text-gray-400 mt-3">
+                    Applied on:{" "}
+                    {new Date(app.application_date).toDateString()}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
         ) : (
-          <p className="text-gray-500 col-span-full">
+          <p className="text-center text-gray-400 mt-20 text-lg">
             You haven’t applied for any jobs yet.
           </p>
         )}
-      </div>
+      </main>
+
+      <ToastContainer position="bottom-right" autoClose={2000} />
     </div>
   );
 }
