@@ -6,8 +6,8 @@ import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 export default function Home() {
   return (
-    <div className="bg-transparent text-white">
-      <main>
+    <div className="flex flex-col min-h-screen text-white">
+      <main className="flex-grow">
         <Header showAuth/>
         <Hero />
         <FeaturesSection />
@@ -17,7 +17,7 @@ export default function Home() {
 >
   {/* Background glow / accent lines */}
   <div className="absolute inset-0 -z-10 opacity-40">
-    <div className="absolute top-1/2 left-1/2 w-[80vw] h-[80vw] bg-gradient-to-tr from-blue-600 via-cyan-400 to-purple-600 blur-[160px] -translate-x-1/2 -translate-y-1/2 rounded-full" />
+    <div className="absolute top-1/2 left-1/2 w-[80vw] h-[80vw] bg-linear-to-tr from-blue-600 via-cyan-400 to-purple-600 blur-[160px] -translate-x-1/2 -translate-y-1/2 rounded-full" />
   </div>
 
   <div className="relative z-10 max-w-3xl mx-auto px-6">

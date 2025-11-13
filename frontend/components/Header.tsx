@@ -2,25 +2,49 @@
 
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface HeaderProps {
   links?: { name: string; href: string }[];
   logoText?: string;
-  accent?: string; // e.g. "from-indigo-400 to-blue-500"
+  accent?: string;
   showAuth?: boolean;
+  dashboardLinks?: boolean;
 }
 
 export default function Header({
-  links = [
-    { name: "Home", href: "/" },
-    
-  ],
+  links = [{ name: "Home", href: "/" }],
   logoText = "ReUnion",
   accent = "from-indigo-400 to-blue-500",
   showAuth = false,
+  dashboardLinks = false,
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      if (user?.role === "student" || user?.role === "alumni") {
+        setRole(user.role);
+      }
+    } catch {
+      setRole(null);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = "/signin";
+  };
+
+  const profileLink =
+    role === "student"
+      ? "/student/profile"
+      : role === "alumni"
+      ? "/alumni/profile"
+      : "/signin";
 
   return (
     <header
@@ -30,13 +54,14 @@ export default function Header({
       rounded-full shadow-[0_0_40px_rgba(255,255,255,0.1)]
       px-8 py-3 flex justify-between items-center transition-all duration-300"
     >
-      {/* === Logo Section === */}
-      
+      {/* === Logo === */}
+      <Link href="/" className="flex items-center space-x-2">
         <span className="text-white font-semibold text-lg tracking-wide">
           {logoText}
         </span>
+      </Link>
 
-      {/* === Navigation Links (Desktop) === */}
+      {/* === Desktop Nav === */}
       <nav className="hidden sm:flex items-center space-x-6">
         {links.map((link) => (
           <Link
@@ -48,6 +73,38 @@ export default function Header({
           </Link>
         ))}
 
+        {/* === Dashboard Links === */}
+        {dashboardLinks && (
+          <>
+            <Link
+              href={profileLink}
+              className="flex items-center justify-center gap-2
+                px-5 py-2.5 rounded-full 
+                bg-transparent hover:bg-white
+                border border-gray-200 hover:border-white
+                text-white hover:text-black
+                text-sm font-semibold
+                transition-all duration-300 hover:scale-105"
+            >
+              Profile
+            </Link>
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center justify-center gap-2
+                px-5 py-2.5 rounded-full 
+                bg-transparent hover:bg-red-600
+                border border-red-600/40 hover:border-red-600
+                text-white hover:text-white
+                text-sm font-semibold
+                transition-all duration-300 hover:scale-105"
+            >
+              Logout
+            </button>
+          </>
+        )}
+
+        {/* === Auth Buttons === */}
         {showAuth && (
           <>
             <Link
@@ -58,7 +115,7 @@ export default function Header({
             </Link>
             <Link
               href="/signup"
-              className="px-4 py-2 text-sm font-semibold rounded-full bg-white text-gray-900 hover:bg-gray-100 shadow-[0_0_20px_rgba(255,255,255,0.3)  transition-all"
+              className="px-4 py-2 text-sm font-semibold rounded-full bg-white text-gray-900 hover:bg-gray-100 shadow-[0_0_20px_rgba(255,255,255,0.3)] transition-all"
             >
               Join
             </Link>
@@ -80,7 +137,7 @@ export default function Header({
         <div
           className="absolute top-full mt-3 left-0 w-full
           bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl
-          flex flex-col items-center py-4 space-y-4 sm:hidden"
+          flex flex-col items-center py-5 space-y-4 sm:hidden"
         >
           {links.map((link) => (
             <Link
@@ -92,6 +149,24 @@ export default function Header({
               {link.name}
             </Link>
           ))}
+
+          {dashboardLinks && (
+            <>
+              <Link
+                href={profileLink}
+                onClick={() => setMenuOpen(false)}
+                className="text-gray-200 hover:text-cyan-400 text-base transition-colors"
+              >
+                Profile
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="text-gray-200 hover:text-red-400 text-base transition-colors"
+              >
+                Logout
+              </button>
+            </>
+          )}
 
           {showAuth && (
             <>
@@ -105,7 +180,7 @@ export default function Header({
               <Link
                 href="/signup"
                 onClick={() => setMenuOpen(false)}
-                className="px-4 py-2 text-sm font-semibold text-gray-900  hover:bg-white hover:text-black rounded-md shadow-[0_0_20px_rgba(56,189,248,0.4)] transition-all"
+                className="px-4 py-2 text-sm font-semibold text-gray-900 bg-white hover:bg-gray-200 rounded-full shadow-[0_0_20px_rgba(56,189,248,0.4)] transition-all"
               >
                 Join
               </Link>

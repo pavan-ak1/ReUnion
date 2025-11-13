@@ -1,131 +1,184 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import { getUserName } from "@/lib/auth";
-import api from "@/lib/api";
 import Link from "next/link";
-import StudentHeader from "@/components/StudentHeader";
+import api from "@/lib/api";
+import Header from "@/components/Header";
+import Aurora from "@/components/Aurora";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function StudentDashboard() {
   const [events, setEvents] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<number>(0);
-  const name = getUserName();
+  const [mentorships, setMentorships] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
       try {
-        const [eventsRes, jobsRes, requestsRes] = await Promise.all([
-  api.get("/events"),                            // ✅ public, works
-  api.get("/jobs"),                      // ✅ verifyStudent protected
-  api.get("/mentorship/requests"),       // ✅ verifyStudent protected
-]);
-
-
-
+        const [eventsRes, jobsRes, mentorshipRes] = await Promise.all([
+          api.get("/events"),
+          api.get("/jobs"),
+          api.get("/mentorship/requests"),
+        ]);
         setEvents(eventsRes.data.data || []);
         setJobs(jobsRes.data.data || []);
-        const pending = (requestsRes.data.data || []).filter(
-          (r: any) => r.status === "Pending"
-        ).length;
-        setPendingRequests(pending);
+        setMentorships(mentorshipRes.data.data || []);
       } catch (err) {
-        console.error("Error fetching dashboard data:", err);
+        console.error("Error fetching student dashboard:", err);
+        toast.error("Failed to load dashboard data.");
+      } finally {
+        setLoading(false);
       }
     };
-    fetchData();
+    fetchDashboardData();
   }, []);
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <StudentHeader />
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-[#0B0B0B] text-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-300"></div>
+      </div>
+    );
+  }
 
-      {/* Welcome header */}
-      <div className="p-6 bg-white shadow flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-blue-700">Welcome, {name}</h1>
-        <span className="text-gray-600 text-sm">
-          Here’s your university network at a glance.
-        </span>
+  return (
+    <div className="relative min-h-screen text-white overflow-hidden">
+      {/* === Aurora Background === */}
+      <div className="absolute inset-0 -z-10 bg-[#0B0B0B]">
+        <Aurora
+          colorStops={[
+            "#2563eb", // blue
+            "#b5aada", // soft violet
+            "#ffffff", // white highlights
+          ]}
+          blend={0.85}
+          amplitude={1.3}
+          speed={0.25}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0B0B0B]/40 to-[#0B0B0B]" />
       </div>
 
-      {/* Dashboard grid */}
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Events */}
-        <div className="bg-white p-4 rounded-xl shadow">
-          <h2 className="text-lg font-semibold mb-3 text-blue-600">
+      {/* === Header === */}
+      <Header
+        logoText="ReUnion Student"
+        accent="from-cyan-400 to-blue-500"
+        dashboardLinks
+      />
+
+      {/* === Dashboard Main === */}
+      <main className="relative z-10 max-w-5xl mx-auto px-6 py-24 sm:py-32 space-y-16">
+        {/* === Title === */}
+        <div className="text-center">
+          <h1 className="text-5xl sm:text-5xl font-bold mb-2 text-white">
+            Student Dashboard
+          </h1>
+          <p className="text-gray-400 text-sm">
+            Stay updated with events, opportunities, and mentorships.
+          </p>
+        </div>
+
+        {/* === Events Section === */}
+        <section className="border-t border-white pt-8">
+          <h2 className="text-3xl font-bold text-white mb-4">
             Upcoming Events
           </h2>
+
           {events.length > 0 ? (
-            events.slice(0, 3).map((event) => (
-              <div key={event.event_id} className="border-b py-2">
-                <p className="font-medium">{event.event_name}</p>
-                <p className="text-sm text-gray-600">
-                  {new Date(event.date).toDateString()}
-                </p>
-              </div>
-            ))
+            <ul className="space-y-3">
+              {events.slice(0, 3).map((event) => (
+                <li
+                  key={event.event_id}
+                  className="flex justify-between items-center border-b border-white/10 pb-3"
+                >
+                  <div>
+                    <p className="font-medium text-white">{event.event_name}</p>
+                    <p className="text-sm text-gray-400">
+                      {new Date(event.date).toDateString()}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           ) : (
-            <p className="text-gray-500">No events available</p>
+            <p className="text-gray-400 italic">No upcoming events found.</p>
           )}
-          <Link
-            href="/student/events"
-            className="text-blue-600 underline mt-3 block hover:text-blue-800"
-          >
-            → View All Events
-          </Link>
-        </div>
 
-        {/* Jobs */}
-        <div className="bg-white p-4 rounded-xl shadow">
-          <h2 className="text-lg font-semibold mb-3 text-green-600">
-            Available Jobs
+          <div className="mt-4 text-sm space-x-4">
+            <Link
+              href="/student/events"
+              className="text-cyan-400 hover:underline font-medium"
+            >
+              View All Events →
+            </Link>
+          </div>
+        </section>
+
+        {/* === Jobs Section === */}
+        <section className="border-t border-white pt-8">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Job Opportunities
           </h2>
+
           {jobs.length > 0 ? (
-            jobs.slice(0, 3).map((job) => (
-              <div key={job.job_id} className="border-b py-2">
-                <p className="font-medium">{job.job_title}</p>
-                <p className="text-sm text-gray-600">{job.company}</p>
-              </div>
-            ))
+            <ul className="space-y-3">
+              {jobs.slice(0, 3).map((job) => (
+                <li key={job.job_id} className="border-b border-white/10 pb-3">
+                  <p className="font-medium text-white">{job.job_title}</p>
+                  <p className="text-sm text-gray-400 mb-2">
+                    {job.company} · {job.location}
+                  </p>
+                  <Link
+                    href={`/student/jobs/${job.job_id}`}
+                    className="text-green-400 hover:underline text-sm font-medium"
+                  >
+                    View Details →
+                  </Link>
+                </li>
+              ))}
+            </ul>
           ) : (
-            <p className="text-gray-500">No jobs available</p>
+            <p className="text-gray-400 italic">No job openings currently.</p>
           )}
-          <Link
-            href="/student/jobs"
-            className="text-green-600 underline mt-3 block hover:text-green-800"
-          >
-            → Explore Jobs
-          </Link>
-        </div>
 
-        {/* Mentorship */}
-        <div className="bg-white p-4 rounded-xl shadow relative">
-          <h2 className="text-lg font-semibold mb-3 text-purple-700">
-            Mentorship
-          </h2>
-          <p className="text-gray-700 mb-2">
-            Connect with alumni mentors for guidance.
+          <div className="mt-4 text-sm space-x-4">
+            <Link
+              href="/student/jobs"
+              className="text-green-400 hover:underline font-medium"
+            >
+              Explore All Jobs →
+            </Link>
+          </div>
+        </section>
+
+        {/* === Mentorship Section === */}
+        <section className="border-t border-white pt-8 pb-10">
+          <h2 className="text-3xl font-bold text-white mb-4">Mentorship</h2>
+
+          <p className="text-gray-300 mb-6">
+            Connect with alumni mentors to guide your academic and career path.
           </p>
-          <div className="space-y-1">
+
+          <div className="text-sm space-y-3">
             <Link
               href="/student/mentorship/mentors"
-              className="text-purple-600 underline block hover:text-purple-800"
+              className="block text-purple-400 hover:underline font-medium"
             >
               Find Mentors
             </Link>
             <Link
               href="/student/mentorship/requests"
-              className="text-purple-600 underline block hover:text-purple-800 relative"
+              className="block text-purple-400 hover:underline font-medium"
             >
               View My Requests →
-              {pendingRequests > 0 && (
-                <span className="absolute ml-2 bg-red-500 text-white text-xs px-1.5 rounded">
-                  {pendingRequests}
-                </span>
-              )}
             </Link>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
+
+      <ToastContainer position="bottom-right" autoClose={2000} theme="dark" />
     </div>
   );
 }

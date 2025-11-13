@@ -1,19 +1,29 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import Link from "next/link";
+import Header from "@/components/Header";
+import Aurora from "@/components/Aurora";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function StudentJobsPage() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [appliedJobs, setAppliedJobs] = useState<number[]>([]);
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const res = await api.get("/jobs");
-        setJobs(res.data.data || res.data);
-      } catch (err) {
-        console.error("Error fetching jobs:", err);
+        const [allJobs, applied] = await Promise.all([
+          api.get("/jobs"),
+          api.get("/student/jobs/applied"),
+        ]);
+        setJobs(allJobs.data.data || allJobs.data);
+        setAppliedJobs((applied.data.data || applied.data).map((j: any) => j.job_id));
+      } catch {
+        toast.error("Failed to load jobs");
       } finally {
         setLoading(false);
       }
@@ -24,54 +34,116 @@ export default function StudentJobsPage() {
   const handleApply = async (jobId: number) => {
     try {
       await api.post("/student/jobs/apply", { job_id: jobId });
-      alert("Successfully applied for the job!");
+      toast.success("Successfully applied for the job!");
+      setAppliedJobs((prev) => [...prev, jobId]);
     } catch (err: any) {
-      console.error("Error applying for job:", err);
-      alert(err.response?.data?.message || "Could not apply for the job.");
+      toast.error(err.response?.data?.message || "Could not apply for the job.");
     }
   };
 
-  if (loading) return <p className="p-6 text-gray-500">Loading jobs...</p>;
+  if (loading)
+    return (
+      <div className="flex justify-center items-center h-screen bg-[#0B0B0B] text-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-400"></div>
+      </div>
+    );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="p-6 bg-white shadow flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-green-700">💼 Available Jobs</h1>
-        <Link href="/student/jobs/applied" className="text-green-600 underline">
-          My Applications →
-        </Link>
+    <div className="relative min-h-screen text-white overflow-hidden">
+      {/* === Aurora Background === */}
+      <div className="absolute inset-0 -z-10 bg-[#0B0B0B]">
+        <Aurora
+          colorStops={["#f1f2ca", "#f9ee71", "#f3e11b"]}
+          blend={0.85}
+          amplitude={1.4}
+          speed={0.25}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0B0B0B]/60 to-[#0B0B0B]" />
       </div>
 
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* === Header === */}
+      <Header
+        logoText="ReUnion Student"
+        accent="from-cyan-400 to-blue-500"
+        dashboardLinks
+      />
+
+      {/* === Main Content === */}
+      <main className="relative z-10 max-w-6xl mx-auto px-6 py-24 sm:py-32">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl sm:text-6xl font-extrabold mb-4">
+            Available Jobs
+          </h1>
+          <p className="text-gray-400 text-lg mb-8">
+            Explore the latest job postings and apply to kickstart your career.
+          </p>
+
+          <Link
+            href="/student/jobs/applied"
+            className="inline-block px-6 py-2 border border-white/20 rounded-md text-sm text-white hover:bg-white hover:text-black transition-all duration-200"
+          >
+            View My Applications →
+          </Link>
+        </div>
+
+        {/* === Jobs List === */}
         {jobs.length > 0 ? (
-          jobs.map((job) => (
-            <div key={job.job_id} className="bg-white p-4 rounded-xl shadow">
-              <h3 className="text-lg font-semibold text-green-700">
-                {job.job_title}
-              </h3>
-              <p className="text-gray-600 text-sm">{job.company}</p>
-              <p className="text-gray-500 text-sm">{job.location}</p>
-              <p className="mt-2 text-gray-700 text-sm">
-                {job.job_description?.slice(0, 100)}...
-              </p>
-              <p className="text-xs text-gray-500 mt-2">
-                Deadline:{" "}
-                {job.application_deadline
-                  ? new Date(job.application_deadline).toDateString()
-                  : "N/A"}
-              </p>
-              <button
-                onClick={() => handleApply(job.job_id)}
-                className="bg-green-600 text-white px-4 py-1.5 rounded mt-3 hover:bg-green-700 transition"
+          <div className="space-y-10">
+            {jobs.map((job) => (
+              <div
+                key={job.job_id}
+                className="border-t border-white/10 pt-6 text-left"
               >
-                Apply
-              </button>
-            </div>
-          ))
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-white mb-1">
+                      {job.job_title}
+                    </h2>
+                    <p className="text-gray-400 text-sm">
+                      {job.company} • {job.location || "—"}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => handleApply(job.job_id)}
+                    disabled={appliedJobs.includes(job.job_id)}
+                    className={`mt-4 sm:mt-0 px-5 py-2 rounded-md text-sm font-medium transition-all duration-200 border ${
+                      appliedJobs.includes(job.job_id)
+                        ? "border-gray-600 text-gray-400 cursor-not-allowed"
+                        : "border-white/20 text-white hover:bg-white hover:text-black"
+                    }`}
+                  >
+                    {appliedJobs.includes(job.job_id)
+                      ? "Applied"
+                      : "Apply"}
+                  </button>
+                </div>
+
+                {job.job_description && (
+                  <p className="text-gray-300 mt-4 leading-relaxed max-w-3xl">
+                    {job.job_description.length > 200
+                      ? `${job.job_description.slice(0, 200)}...`
+                      : job.job_description}
+                  </p>
+                )}
+
+                <p className="text-xs text-gray-400 mt-3">
+                  Deadline:{" "}
+                  {job.application_deadline
+                    ? new Date(job.application_deadline).toDateString()
+                    : "Not specified"}
+                </p>
+              </div>
+            ))}
+          </div>
         ) : (
-          <p className="text-gray-500 col-span-full">No job listings available</p>
+          <p className="text-center text-gray-400 mt-20 text-lg">
+            No job listings available at the moment.
+          </p>
         )}
-      </div>
+      </main>
+
+      <ToastContainer position="bottom-right" autoClose={2000} />
     </div>
   );
 }
