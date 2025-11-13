@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express,{ Router } from "express";
 import { getAllJobs, applyForJob, getAppliedJobs, createJob,
   getAlumniJobs,
   updateJob,
@@ -10,7 +10,7 @@ import { verifyStudent } from "../middleware/authMiddleware.js";
 import { verifyAlumni } from "../middleware/authMiddleware.js";
 
 
-const router = Router()
+const router:Router = express.Router();
 
 router.get('/jobs',getAllJobs)
 

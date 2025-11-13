@@ -1,11 +1,11 @@
-import express from "express";
+import express, { Router } from "express";
 import {
   getAlumniProfile,
   updateAlumniProfile,
 } from "../controllers/alumniController.js";
 import { verifyAlumni } from "../middleware/authMiddleware.js";
 
-const router = express.Router();
+const router:Router = express.Router();
 
 
 router.get("/alumni/profile",  verifyAlumni,getAlumniProfile);

@@ -1,4 +1,5 @@
 console.log("✅ mentorRoutes loaded successfully");
+import { Router } from "express";
 import express from "express";
 import {
   setupMentorshipProfile,
@@ -11,7 +12,7 @@ import {
 } from "../controllers/mentorshipController.js";
 import { verifyAlumni,verifyStudent } from "../middleware/authMiddleware.js";
 
-const router = express.Router();
+const router:Router = express.Router();
 
 
 //students routes

@@ -1,4 +1,4 @@
-import {Router} from "express";
+import express,{Router} from "express";
 import {
   createEvent,
   deleteEvent,
@@ -12,7 +12,7 @@ import {
 import { verifyAlumni, verifyStudent } from "../middleware/authMiddleware.js";
 
 
-const router = Router()
+const router:Router = express.Router();
 
 router.get("/events", getAllEvents);
 
