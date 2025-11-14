@@ -32,13 +32,13 @@ building a continuous and collaborative university community.
 Stores all user accounts (both students and alumni).
 
 ```sql
-user_id SERIAL PRIMARY KEY,
-name VARCHAR(100),
-email VARCHAR(100) UNIQUE,
-phone VARCHAR(15),
-password VARCHAR(100),
-role user_role NOT NULL, -- 'student' or 'alumni'
-created_at TIMESTAMP DEFAULT NOW()
+    user_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone VARCHAR(15),
+    password VARCHAR(100) NOT NULL,
+    role user_role NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
 ```
 
 ### **students**
@@ -46,12 +46,11 @@ created_at TIMESTAMP DEFAULT NOW()
 Student-specific academic details.
 
 ```sql
-student_id SERIAL PRIMARY KEY,
-user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-enrollment_year INT,
-degree VARCHAR(100),
-department VARCHAR(100),
-expected_graduation INT
+    user_id INT PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+    enrollment_year INT NOT NULL,
+    degree VARCHAR(100),
+    department VARCHAR(100),
+    expected_graduation INT
 ```
 
 ### **alumni**
@@ -59,14 +58,13 @@ expected_graduation INT
 Alumni-specific professional details.
 
 ```sql
-alumni_id SERIAL PRIMARY KEY,
-user_id INT UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
-graduation_year INT,
-degree VARCHAR(100),
-department VARCHAR(100),
-current_position VARCHAR(100),
-company VARCHAR(100),
-location VARCHAR(100)
+    user_id INT PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+    graduation_year INT NOT NULL,
+    degree VARCHAR(100),
+    department VARCHAR(100),
+    current_position VARCHAR(100),
+    company VARCHAR(100),
+    location VARCHAR(100)
 ```
 
 ### **events**
@@ -74,13 +72,13 @@ location VARCHAR(100)
 Created by alumni and accessible to students.
 
 ```sql
-event_id SERIAL PRIMARY KEY,
-organizer_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-event_name VARCHAR(150),
-description TEXT,
-date DATE,
-location VARCHAR(100),
-created_at TIMESTAMP DEFAULT NOW()
+    event_id SERIAL PRIMARY KEY,
+    organizer_id INT REFERENCES users(user_id) ON DELETE CASCADE,
+    event_name VARCHAR(150) NOT NULL,
+    description TEXT,
+    date DATE NOT NULL,
+    location VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
 ```
 
 ### **jobs**
@@ -88,15 +86,15 @@ created_at TIMESTAMP DEFAULT NOW()
 Job postings created by alumni.
 
 ```sql
-job_id SERIAL PRIMARY KEY,
-alumni_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-job_title VARCHAR(100),
-company VARCHAR(100),
-job_description TEXT,
-location VARCHAR(100),
-employment_type VARCHAR(50),
-application_deadline DATE,
-posted_date TIMESTAMP DEFAULT NOW()
+    job_id SERIAL PRIMARY KEY,
+    alumni_id INT REFERENCES alumni(user_id) ON DELETE CASCADE,
+    job_title VARCHAR(100) NOT NULL,
+    company VARCHAR(100) NOT NULL,
+    job_description TEXT,
+    location VARCHAR(100),
+    employment_type VARCHAR(50),
+    application_deadline DATE,
+    posted_date TIMESTAMP DEFAULT NOW()
 ```
 
 ### **job_applications**
@@ -104,12 +102,12 @@ posted_date TIMESTAMP DEFAULT NOW()
 Applications submitted by students.
 
 ```sql
-application_id SERIAL PRIMARY KEY,
-job_id INT REFERENCES jobs(job_id) ON DELETE CASCADE,
-student_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-status VARCHAR(50) DEFAULT 'Applied', -- Applied / Shortlisted / Hired / Rejected
-applied_at TIMESTAMP DEFAULT NOW(),
-UNIQUE (job_id, student_id)
+    application_id SERIAL PRIMARY KEY,
+    job_id INT REFERENCES jobs(job_id) ON DELETE CASCADE,
+    student_id INT REFERENCES students(user_id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'Applied',
+    applied_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (job_id, student_id)
 ```
 
 ### **mentors**
@@ -117,12 +115,11 @@ UNIQUE (job_id, student_id)
 Mentorship profiles created by alumni.
 
 ```sql
-mentor_id SERIAL PRIMARY KEY,
-alumni_id INT UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
-expertise TEXT,
-availability BOOLEAN DEFAULT TRUE,
-max_mentees INT DEFAULT 5,
-created_at TIMESTAMP DEFAULT NOW()
+    alumni_id INT PRIMARY KEY REFERENCES alumni(user_id) ON DELETE CASCADE,
+    expertise TEXT NOT NULL,
+    availability BOOLEAN DEFAULT TRUE,
+    max_mentees INT DEFAULT 5,
+    created_at TIMESTAMP DEFAULT NOW()
 ```
 
 ### **mentorship_requests**
@@ -130,12 +127,12 @@ created_at TIMESTAMP DEFAULT NOW()
 Student requests to alumni mentors.
 
 ```sql
-request_id SERIAL PRIMARY KEY,
-student_id INT REFERENCES users(user_id) ON DELETE CASCADE,
-mentor_id INT REFERENCES mentors(mentor_id) ON DELETE CASCADE,
-status VARCHAR(50) DEFAULT 'Pending', -- Pending / Accepted / Rejected
-requested_at TIMESTAMP DEFAULT NOW(),
-UNIQUE (student_id, mentor_id)
+    request_id SERIAL PRIMARY KEY,
+    student_id INT REFERENCES students(user_id) ON DELETE CASCADE,
+    mentor_id INT REFERENCES mentors(alumni_id) ON DELETE CASCADE,
+    status VARCHAR(50) DEFAULT 'Pending',
+    requested_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (student_id, mentor_id)
 ```
 
 
