@@ -16,7 +16,8 @@ import studentRoutes from "./routes/studentProfileRoutes.js";
 import eventRoutes from "./routes/eventRoutes.js";
 import jobsRoutes from "./routes/jobRoutes.js";
 import alumniRoutes from "./routes/alumniRoutes.js";
-import mentorRoutes from "./routes/mentorRoutes.js";
+import mentorRoutes from "./routes/mentorshipRoutes.js";
+
 
 const app = express();
 

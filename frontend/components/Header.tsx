@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Bell } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface HeaderProps {
@@ -63,23 +63,28 @@ export default function Header({
 
         {dashboardLinks && (
           <>
-            <Link
-              href={
-                dashboardHome.includes("student")
-                  ? "/student/profile"
-                  : "/alumni/profile"
-              }
-              className="flex items-center justify-center gap-2
-                px-5 py-2.5 rounded-full 
-                bg-transparent hover:bg-white
-                border border-gray-200 hover:border-white
-                text-white hover:text-black
-                text-sm font-semibold
-                transition-all duration-300
-                hover:scale-105"
-            >
-              Profile
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/notifications" className="text-gray-200 hover:text-white transition-colors">
+                <Bell className="h-5 w-5" />
+              </Link>
+              <Link
+                href={
+                  dashboardHome.includes("student")
+                    ? "/student/profile"
+                    : "/alumni/profile"
+                }
+                className="flex items-center justify-center gap-2
+                  px-5 py-2.5 rounded-full 
+                  bg-transparent hover:bg-white
+                  border border-gray-200 hover:border-white
+                  text-white hover:text-black
+                  text-sm font-semibold
+                  transition-all duration-300
+                  hover:scale-105"
+              >
+                Profile
+              </Link>
+            </div>
 
             <Link
               href="/signin"

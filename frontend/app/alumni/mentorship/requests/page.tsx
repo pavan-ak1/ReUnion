@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
-import Header from "@/components/Header"; // Changed from AlumniHeader
-import Aurora from "@/components/Aurora"; // Added
-import { toast, ToastContainer } from "react-toastify"; // Added
-import "react-toastify/dist/ReactToastify.css"; // Added
+import Header from "@/components/Header";
+import Aurora from "@/components/Aurora";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { addNotification } from "@/lib/notificationUtils"; // <-- IMPORTANT
 
-// Define a type for your request
 interface Request {
   request_id: number;
   student_name: string;
@@ -36,12 +36,29 @@ export default function MentorshipRequestsPage() {
 
   const handleStatusChange = async (requestId: number, status: string) => {
     try {
+      const req = requests.find(r => r.request_id === requestId);
+      if (!req) return;
+
       await api.put(`/alumni/mentorship/request/${requestId}/status`, { status });
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.request_id === requestId ? { ...r, status } : r
-        )
+
+      // Update UI
+      setRequests(prev =>
+        prev.map(r => (r.request_id === requestId ? { ...r, status } : r))
       );
+
+      // === LOCAL NOTIFICATION (Alumni side) ===
+      if (status === "Accepted") {
+        addNotification(
+          "Mentorship Accepted",
+          `You accepted ${req.student_name}'s mentorship request.`
+        );
+      } else if (status === "Rejected") {
+        addNotification(
+          "Mentorship Rejected",
+          `You rejected ${req.student_name}'s mentorship request.`
+        );
+      }
+
       toast.success(`Request ${status.toLowerCase()}!`);
     } catch (err) {
       console.error("Error updating status:", err);
@@ -79,7 +96,6 @@ export default function MentorshipRequestsPage() {
 
       {/* Main Content */}
       <main className="relative z-10 max-w-5xl mx-auto px-6 py-24 sm:py-32 space-y-16">
-        {/* Page Title */}
         <div className="text-center">
           <h1 className="text-3xl sm:text-4xl font-bold mb-2 text-white">
             Mentorship Requests
@@ -89,11 +105,11 @@ export default function MentorshipRequestsPage() {
           </p>
         </div>
 
-        {/* Requests List Section */}
+        {/* List */}
         <section className="border-t border-white/10 pt-8">
           {requests.length > 0 ? (
             <ul className="space-y-4">
-              {requests.map((req) => (
+              {requests.map(req => (
                 <li
                   key={req.request_id}
                   className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-white/10 py-4"
@@ -102,28 +118,28 @@ export default function MentorshipRequestsPage() {
                     <p className="font-semibold text-white text-lg">
                       {req.student_name}
                     </p>
-                    <p className="text-sm text-gray-400">
-                      {req.student_email}
-                    </p>
+                    <p className="text-sm text-gray-400">{req.student_email}</p>
+
                     <p
                       className={`text-sm font-medium mt-1 ${
                         req.status === "Accepted"
                           ? "text-green-400"
                           : req.status === "Rejected"
-                          ? "text-red-500"
+                          ? "text-red-400"
                           : "text-yellow-400"
                       }`}
                     >
                       Status: {req.status}
                     </p>
                   </div>
+
                   {req.status === "Pending" && (
-                    <div className="flex gap-3 flex-shrink-0">
+                    <div className="flex gap-3">
                       <button
                         onClick={() =>
                           handleStatusChange(req.request_id, "Accepted")
                         }
-                        className="px-4 py-2 rounded-lg font-semibold text-sm text-green-400 bg-transparent border border-green-500/50 hover:bg-green-500/20 hover:border-green-500/80 transition-all duration-200"
+                        className="px-4 py-2 rounded-lg font-semibold text-sm text-green-400 border border-green-500/50 hover:bg-green-500/20 transition-all"
                       >
                         Accept
                       </button>
@@ -131,7 +147,7 @@ export default function MentorshipRequestsPage() {
                         onClick={() =>
                           handleStatusChange(req.request_id, "Rejected")
                         }
-                        className="px-4 py-2 rounded-lg font-semibold text-sm text-red-400 bg-transparent border border-red-500/50 hover:bg-red-500/20 hover:border-red-500/80 transition-all duration-200"
+                        className="px-4 py-2 rounded-lg font-semibold text-sm text-red-400 border border-red-500/50 hover:bg-red-500/20 transition-all"
                       >
                         Reject
                       </button>
