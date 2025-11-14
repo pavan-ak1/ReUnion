@@ -132,7 +132,7 @@ export const getAppliedJobs = async (req: Request, res: Response) => {
 export const createJob = async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
-    const { user_id } = req.user!;
+    const { user_id, role } = req.user!;
     const {
       job_title,
       company,
@@ -142,7 +142,11 @@ export const createJob = async (req: Request, res: Response) => {
       application_deadline,
     } = req.body;
 
-    
+    if (role !== "alumni") {
+      return res
+        .status(StatusCodes.FORBIDDEN)
+        .json({ message: "Only alumni can create job postings" });
+    }
 
     if (!job_title || !company || !employment_type || !application_deadline) {
       return res
@@ -151,9 +155,12 @@ export const createJob = async (req: Request, res: Response) => {
     }
 
     const query = `
-      INSERT INTO jobs (alumni_id, job_title, company, job_description, location, employment_type, application_deadline)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING job_id, job_title, company, employment_type, location, posted_date
+      INSERT INTO jobs 
+        (alumni_id, job_title, company, job_description, location, employment_type, application_deadline)
+      VALUES 
+        ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING 
+        job_id, job_title, company, employment_type, location, posted_date
     `;
 
     const result = await client.query(query, [
@@ -170,11 +177,12 @@ export const createJob = async (req: Request, res: Response) => {
       message: "Job created successfully",
       data: result.rows[0],
     });
+
   } catch (error) {
     console.error("Error creating job:", error);
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Server error while creating job" });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      message: "Server error while creating job",
+    });
   } finally {
     client.release();
   }

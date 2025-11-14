@@ -10,14 +10,13 @@ export const setupMentorshipProfile = async (req: Request, res: Response) => {
     const { user_id } = req.user!;
     const { expertise, availability, max_mentees } = req.body;
 
-
     if (!expertise) {
       return res
         .status(StatusCodes.BAD_REQUEST)
         .json({ message: "Expertise field is required" });
     }
 
-    // Check if alumni already has a mentorship profile
+    // Check if mentorship profile exists
     const existing = await client.query(
       `SELECT * FROM mentors WHERE alumni_id = $1`,
       [user_id]
@@ -25,44 +24,44 @@ export const setupMentorshipProfile = async (req: Request, res: Response) => {
 
     let result;
     if (existing.rows.length > 0) {
-      // Update existing profile
+      // UPDATE mentor profile
       result = await client.query(
         `UPDATE mentors
          SET expertise = COALESCE($1, expertise),
              availability = COALESCE($2, availability),
              max_mentees = COALESCE($3, max_mentees)
          WHERE alumni_id = $4
-         RETURNING mentor_id, alumni_id, expertise, availability, max_mentees`,
+         RETURNING alumni_id, expertise, availability, max_mentees`,
         [expertise, availability, max_mentees, user_id]
       );
 
-      res.status(StatusCodes.OK).json({
+      return res.status(StatusCodes.OK).json({
         message: "Mentorship profile updated successfully",
         data: result.rows[0],
       });
-    } else {
-      // Create new mentorship profile
-      result = await client.query(
-        `INSERT INTO mentors (alumni_id, expertise, availability, max_mentees)
-         VALUES ($1, $2, COALESCE($3, TRUE), COALESCE($4, 5))
-         RETURNING mentor_id, alumni_id, expertise, availability, max_mentees`,
-        [user_id, expertise, availability, max_mentees]
-      );
-
-      res.status(StatusCodes.CREATED).json({
-        message: "Mentorship profile created successfully",
-        data: result.rows[0],
-      });
     }
+
+    // CREATE new mentor profile
+    result = await client.query(
+      `INSERT INTO mentors (alumni_id, expertise, availability, max_mentees)
+       VALUES ($1, $2, COALESCE($3, TRUE), COALESCE($4, 5))
+       RETURNING alumni_id, expertise, availability, max_mentees`,
+      [user_id, expertise, availability, max_mentees]
+    );
+
+    return res.status(StatusCodes.CREATED).json({
+      message: "Mentorship profile created successfully",
+      data: result.rows[0],
+    });
+
   } catch (error) {
     console.error("Error setting up mentorship profile:", error);
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Server error while setting up mentorship profile" });
+    res.status(500).json({ message: "Server error while setting up mentorship profile" });
   } finally {
     client.release();
   }
 };
+
 
 
 export const getMentorshipProfile = async (req: Request, res: Response) => {
@@ -71,14 +70,11 @@ export const getMentorshipProfile = async (req: Request, res: Response) => {
     const { user_id, role } = req.user!;
 
     if (role !== "alumni") {
-      return res
-        .status(StatusCodes.FORBIDDEN)
-        .json({ message: "Access restricted to alumni only" });
+      return res.status(StatusCodes.FORBIDDEN).json({ message: "Access restricted to alumni only" });
     }
 
     const query = `
       SELECT 
-        m.mentor_id,
         m.alumni_id,
         m.expertise,
         m.availability,
@@ -103,11 +99,10 @@ export const getMentorshipProfile = async (req: Request, res: Response) => {
       message: "Mentorship profile fetched successfully",
       data: result.rows[0],
     });
+
   } catch (error) {
     console.error("Error fetching mentorship profile:", error);
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Server error while fetching mentorship profile" });
+    res.status(500).json({ message: "Server error while fetching mentorship profile" });
   } finally {
     client.release();
   }
@@ -115,13 +110,13 @@ export const getMentorshipProfile = async (req: Request, res: Response) => {
 
 
 
+
 export const getAvailableMentors = async (req: Request, res: Response) => {
   const client = await pool.connect();
-
   try {
     const query = `
       SELECT 
-        m.mentor_id,
+        m.alumni_id AS mentor_id,
         u.name AS mentor_name,
         u.email AS mentor_email,
         a.degree,
@@ -138,71 +133,52 @@ export const getAvailableMentors = async (req: Request, res: Response) => {
 
     const result = await client.query(query);
 
-    if (result.rows.length === 0) {
-      return res
-        .status(StatusCodes.NOT_FOUND)
-        .json({ message: "No mentors currently available" });
-    }
-
     res.status(StatusCodes.OK).json({
       message: "Available mentors fetched successfully",
       data: result.rows,
     });
+
   } catch (error) {
     console.error("Error fetching mentors:", error);
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Server error while fetching mentors" });
+    res.status(500).json({ message: "Server error while fetching mentors" });
   } finally {
     client.release();
   }
 };
 
 
+
 export const sendMentorshipRequest = async (req: Request, res: Response) => {
   const client = await pool.connect();
-
   try {
     const { user_id, role } = req.user!;
-    const { mentor_id } = req.body;
+    const { mentor_id } = req.body; // frontend still sends mentor_id (which = alumni_id)
 
     if (role !== "student") {
-      return res
-        .status(StatusCodes.FORBIDDEN)
-        .json({ message: "Access restricted to students only" });
+      return res.status(StatusCodes.FORBIDDEN).json({ message: "Access restricted to students only" });
     }
 
-    if (!mentor_id) {
-      return res
-        .status(StatusCodes.BAD_REQUEST)
-        .json({ message: "mentor_id is required" });
-    }
-
-    // Check if mentor exists and available
+    // Check if mentor exists
     const mentorCheck = await client.query(
-      "SELECT * FROM mentors WHERE mentor_id = $1 AND availability = TRUE",
+      "SELECT * FROM mentors WHERE alumni_id = $1 AND availability = TRUE",
       [mentor_id]
     );
 
     if (mentorCheck.rows.length === 0) {
-      return res
-        .status(StatusCodes.NOT_FOUND)
-        .json({ message: "Mentor not found or unavailable" });
+      return res.status(StatusCodes.NOT_FOUND).json({ message: "Mentor not found or unavailable" });
     }
 
-    // Check if student already requested this mentor
+    // Check if already requested
     const existing = await client.query(
       "SELECT * FROM mentorship_requests WHERE student_id = $1 AND mentor_id = $2",
       [user_id, mentor_id]
     );
 
     if (existing.rows.length > 0) {
-      return res
-        .status(StatusCodes.CONFLICT)
-        .json({ message: "You have already requested this mentor" });
+      return res.status(StatusCodes.CONFLICT).json({ message: "You have already requested this mentor" });
     }
 
-    // Create new request
+    // Insert new request
     const result = await client.query(
       `INSERT INTO mentorship_requests (student_id, mentor_id)
        VALUES ($1, $2)
@@ -214,15 +190,15 @@ export const sendMentorshipRequest = async (req: Request, res: Response) => {
       message: "Mentorship request sent successfully",
       data: result.rows[0],
     });
+
   } catch (error) {
     console.error("Error sending mentorship request:", error);
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Server error while sending request" });
+    res.status(500).json({ message: "Server error while sending request" });
   } finally {
     client.release();
   }
 };
+
 
 
 export const getStudentRequests = async (req: Request, res: Response) => {
@@ -242,11 +218,12 @@ export const getStudentRequests = async (req: Request, res: Response) => {
         r.request_id,
         r.status,
         r.requested_at,
+        m.alumni_id AS mentor_id,
         m.expertise,
         u.name AS mentor_name,
         u.email AS mentor_email
       FROM mentorship_requests r
-      JOIN mentors m ON r.mentor_id = m.mentor_id
+      JOIN mentors m ON r.mentor_id = m.alumni_id
       JOIN users u ON m.alumni_id = u.user_id
       WHERE r.student_id = $1
       ORDER BY r.requested_at DESC
@@ -255,20 +232,20 @@ export const getStudentRequests = async (req: Request, res: Response) => {
     const result = await client.query(query, [user_id]);
 
     res.status(StatusCodes.OK).json({
-      message: result.rows.length === 0 
-        ? "No mentorship requests found" 
-        : "Mentorship requests fetched successfully",
+      message:
+        result.rows.length === 0
+          ? "No mentorship requests found"
+          : "Mentorship requests fetched successfully",
       data: result.rows,
     });
   } catch (error) {
     console.error("Error fetching student requests:", error);
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Server error while fetching requests" });
+    res.status(500).json({ message: "Server error while fetching requests" });
   } finally {
     client.release();
   }
 };
+
 
 
 
@@ -284,8 +261,9 @@ export const getMentorshipRequests = async (req: Request, res: Response) => {
         .json({ message: "Access restricted to alumni only" });
     }
 
+    // Check if alumni is a mentor
     const mentorRes = await client.query(
-      "SELECT mentor_id FROM mentors WHERE alumni_id = $1",
+      "SELECT alumni_id, max_mentees FROM mentors WHERE alumni_id = $1",
       [user_id]
     );
 
@@ -295,13 +273,14 @@ export const getMentorshipRequests = async (req: Request, res: Response) => {
         .json({ message: "No mentorship profile found for this alumni" });
     }
 
-    const mentor_id = mentorRes.rows[0].mentor_id;
+    const mentor_id = mentorRes.rows[0].alumni_id;
 
     const query = `
       SELECT 
         r.request_id,
         r.status,
         r.requested_at,
+        u.user_id AS student_id,
         u.name AS student_name,
         u.email AS student_email,
         u.phone AS student_phone
@@ -323,15 +302,15 @@ export const getMentorshipRequests = async (req: Request, res: Response) => {
       message: "Mentorship requests fetched successfully",
       data: result.rows,
     });
+
   } catch (error) {
     console.error("Error fetching mentorship requests:", error);
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Server error while fetching mentorship requests" });
+    res.status(500).json({ message: "Server error while fetching mentorship requests" });
   } finally {
     client.release();
   }
 };
+
 
 
 export const respondToMentorshipRequest = async (req: Request, res: Response) => {
@@ -353,8 +332,9 @@ export const respondToMentorshipRequest = async (req: Request, res: Response) =>
         .json({ message: "Status must be either 'Accepted' or 'Rejected'" });
     }
 
+    // Fetch mentor details
     const mentorRes = await client.query(
-      "SELECT mentor_id FROM mentors WHERE alumni_id = $1",
+      "SELECT alumni_id, max_mentees FROM mentors WHERE alumni_id = $1",
       [user_id]
     );
 
@@ -364,8 +344,10 @@ export const respondToMentorshipRequest = async (req: Request, res: Response) =>
         .json({ message: "No mentorship profile found for this alumni" });
     }
 
-    const { mentor_id, max_mentees } = mentorRes.rows[0];
+    const mentor_id = mentorRes.rows[0].alumni_id;
+    const max_mentees = mentorRes.rows[0].max_mentees;
 
+    // Verify request belongs to this mentor
     const check = await client.query(
       "SELECT * FROM mentorship_requests WHERE request_id = $1 AND mentor_id = $2",
       [requestId, mentor_id]
@@ -377,11 +359,13 @@ export const respondToMentorshipRequest = async (req: Request, res: Response) =>
         .json({ message: "Request not found or not authorized to modify" });
     }
 
+    // Update request status
     await client.query(
       "UPDATE mentorship_requests SET status = $1 WHERE request_id = $2",
       [status, requestId]
     );
-    
+
+    // Auto-disable mentor availability when full
     if (status === "Accepted") {
       const countAccepted = await client.query(
         "SELECT COUNT(*) FROM mentorship_requests WHERE mentor_id = $1 AND status = 'Accepted'",
@@ -392,23 +376,23 @@ export const respondToMentorshipRequest = async (req: Request, res: Response) =>
 
       if (acceptedCount >= max_mentees) {
         await client.query(
-          "UPDATE mentors SET availability = FALSE WHERE mentor_id = $1",
+          "UPDATE mentors SET availability = FALSE WHERE alumni_id = $1",
           [mentor_id]
         );
       }
     }
 
-    res
-      .status(StatusCodes.OK)
-      .json({ message: `Mentorship request ${status.toLowerCase()} successfully` });
+    res.status(StatusCodes.OK).json({
+      message: `Mentorship request ${status.toLowerCase()} successfully`,
+    });
+
   } catch (error) {
     console.error("Error responding to mentorship request:", error);
-    res
-      .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Server error while updating request status" });
+    res.status(500).json({ message: "Server error while updating request status" });
   } finally {
     client.release();
   }
 };
+
 
 

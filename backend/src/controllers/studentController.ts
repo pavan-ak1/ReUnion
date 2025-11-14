@@ -66,15 +66,17 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
       expected_graduation,
     } = req.body;
 
+    // Only students can update student profile
     if (role !== "student") {
       return res
         .status(StatusCodes.FORBIDDEN)
         .json({ message: "Access restricted to students only" });
     }
 
+    // Begin transaction
     await client.query("BEGIN");
 
-    
+    // Update USERS table
     await client.query(
       `
       UPDATE users 
@@ -82,32 +84,40 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
           phone = COALESCE($2, phone)
       WHERE user_id = $3
       `,
-      [name, phone, user_id]
+      [name || null, phone || null, user_id]
     );
 
-    
+    // Update STUDENTS table
     await client.query(
       `
       UPDATE students 
-      SET degree = COALESCE($1, degree),
-          department = COALESCE($2, department),
-          enrollment_year = COALESCE($3, enrollment_year),
-          expected_graduation = COALESCE($4, expected_graduation)
+      SET 
+        degree = COALESCE($1, degree),
+        department = COALESCE($2, department),
+        enrollment_year = COALESCE($3, enrollment_year),
+        expected_graduation = COALESCE($4, expected_graduation)
       WHERE user_id = $5
       `,
-      [degree, department, enrollment_year, expected_graduation, user_id]
+      [
+        degree || null,
+        department || null,
+        enrollment_year || null,
+        expected_graduation || null,
+        user_id,
+      ]
     );
 
+    // Commit transaction
     await client.query("COMMIT");
 
-    res
+    return res
       .status(StatusCodes.OK)
       .json({ message: "Profile updated successfully" });
 
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error updating student profile:", error);
-    res
+    return res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ message: "Server error while updating profile" });
   } finally {
