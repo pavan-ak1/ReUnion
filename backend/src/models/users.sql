@@ -1,11 +1,12 @@
 CREATE TYPE user_role AS ENUM ('student', 'alumni', 'admin');
 
-create table users(
-  user_id serial primary key,
-  name varchar(100) not null,
-  email varchar(100) unique not null,
-  phone varchar(15) unique,
-  password varchar(100) not null,
-  role user_role not null,
-  created_at timestamp default now()
+
+CREATE TABLE users (
+    user_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone VARCHAR(15),
+    password VARCHAR(100) NOT NULL,
+    role user_role NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
 );
