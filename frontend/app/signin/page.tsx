@@ -84,7 +84,9 @@ export default function SignInPage() {
       {/* Aurora Background */}
       <div className="absolute inset-0 -z-10 bg-[#050505]">
         <Aurora
-          colorStops={["#6A5AE0", "#3A29FF", "#FF94B4", "#FF3232"]}
+          colorStops={[ "#7dff67", // violet
+            "#b1a0e7", // indigo
+            "#5226ff",]}
           blend={0.9}
           amplitude={1}
           speed={0.5}

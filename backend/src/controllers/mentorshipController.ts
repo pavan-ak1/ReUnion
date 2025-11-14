@@ -254,14 +254,10 @@ export const getStudentRequests = async (req: Request, res: Response) => {
 
     const result = await client.query(query, [user_id]);
 
-    if (result.rows.length === 0) {
-      return res
-        .status(StatusCodes.NOT_FOUND)
-        .json({ message: "No mentorship requests found" });
-    }
-
     res.status(StatusCodes.OK).json({
-      message: "Mentorship requests fetched successfully",
+      message: result.rows.length === 0 
+        ? "No mentorship requests found" 
+        : "Mentorship requests fetched successfully",
       data: result.rows,
     });
   } catch (error) {

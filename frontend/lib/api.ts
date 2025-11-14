@@ -16,15 +16,9 @@ const api = axios.create({
 // Request interceptor to add auth token to requests
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Don't add auth header for auth endpoints
-    if (config.url?.includes('/auth/')) {
-      return config;
-    }
 
-    // Get token from cookie
-    const token = getAuthToken();
-    
-    // If token exists, add it to the headers
+    const token = getAuthToken() || localStorage.getItem("token");
+
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
@@ -32,9 +26,7 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor for handling errors and token refresh

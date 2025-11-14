@@ -15,28 +15,38 @@ export default function MentorsListPage() {
 
   useEffect(() => {
     const fetchMentors = async () => {
-      try {
-        const [mentorsRes, requestsRes] = await Promise.all([
-          api.get("/student/mentorship/mentors"),
-          api.get("/student/mentorship/requests"),
-        ]);
-        setMentors(mentorsRes.data.data || mentorsRes.data);
-        const requested = (requestsRes.data.data || requestsRes.data).map(
-          (r: any) => r.mentor_id
-        );
-        setRequestedMentors(requested);
-      } catch (err) {
-        toast.error("Failed to load mentors list");
-      } finally {
-        setLoading(false);
-      }
-    };
+  try {
+    setLoading(true);
+    
+    // Fetch mentors first
+    const mentorsRes = await api.get("/student/mentorship/mentors");
+    console.log("Mentors response:", mentorsRes.data);
+    setMentors(mentorsRes.data.data || mentorsRes.data || []);
+    
+    // Try to fetch requests, but don't fail if it doesn't exist
+    try {
+      const requestsRes = await api.get("/student/mentorship/requests");
+      const requested = (requestsRes.data.data || requestsRes.data || []).map(
+        (r: any) => r.mentor_id
+      );
+      setRequestedMentors(requested);
+    } catch (requestsError) {
+      console.warn("Could not load mentorship requests:", requestsError);
+      setRequestedMentors([]); // Default to empty array if requests endpoint fails
+    }
+  } catch (err: any) {
+    console.error("Error fetching mentors:", err);
+    toast.error(err.response?.data?.message || "Failed to load mentors list");
+  } finally {
+    setLoading(false);
+  }
+};
     fetchMentors();
   }, []);
 
   const handleRequest = async (mentorId: number) => {
     try {
-      await api.post("/student/mentorship/request", { mentor_id: mentorId });
+      await api.post("/api/v1/student/mentorship/request", { mentor_id: mentorId });
       toast.success("Mentorship request sent successfully!");
       setRequestedMentors((prev) => [...prev, mentorId]);
     } catch (err: any) {

@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import Aurora from "@/components/Aurora";
+import GlowDivider from "./GlowDivider";
 
 export default function Hero() {
   return (
@@ -60,7 +61,9 @@ export default function Hero() {
             Learn More
           </Link>
         </div>
+         <GlowDivider color="via-gray-300"/>
       </div>
+     
     </section>
   );
 }

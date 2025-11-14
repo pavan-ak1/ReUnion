@@ -7,13 +7,15 @@ import Header from "@/components/Header";
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen text-white">
-      <main className="flex-grow">
+      <main className="grow">
         <Header showAuth/>
         <Hero />
+        
+
         <FeaturesSection />
         <section
   className="relative py-24 text-center overflow-hidden 
-  bg-gradient-to-b from-[#050505] via-[#0a0a0a] to-[#000000]"
+  bg-linear-to-b from-[#050505] via-[#0a0a0a] to-[#000000]"
 >
   {/* Background glow / accent lines */}
   <div className="absolute inset-0 -z-10 opacity-40">

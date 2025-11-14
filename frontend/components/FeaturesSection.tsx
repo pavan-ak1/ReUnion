@@ -1,6 +1,7 @@
 "use client";
 
 import CircularGallery from "@/components/CircularGallery";
+import GlowDivider from "./GlowDivider";
 
 export default function FeaturesSection() {
   const items = [
@@ -50,7 +51,9 @@ export default function FeaturesSection() {
           scrollEase={0.05}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/50 pointer-events-none" />
+        <GlowDivider color="via-gray-300" />
       </div>
+      
     </section>
   );
 }
