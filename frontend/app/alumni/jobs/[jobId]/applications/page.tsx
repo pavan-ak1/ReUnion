@@ -7,6 +7,7 @@ import Header from "@/components/Header"; // Changed from AlumniHeader
 import Aurora from "@/components/Aurora"; // Added
 import { toast, ToastContainer } from "react-toastify"; // Added
 import "react-toastify/dist/ReactToastify.css"; // Added
+import { addNotification } from "@/lib/notificationUtils";
 
 // Define a type for your application
 interface Application {
@@ -39,6 +40,9 @@ export default function JobApplicationsPage() {
 
   const handleStatusChange = async (applicationId: number, status: string) => {
     try {
+      const app = applications.find(a => a.application_id === applicationId);
+      if (!app) return;
+
       await api.put(
         `/alumni/jobs/${jobId}/applications/${applicationId}/status`,
         { status }
@@ -48,6 +52,24 @@ export default function JobApplicationsPage() {
           a.application_id === applicationId ? { ...a, status } : a
         )
       );
+
+      // === LOCAL NOTIFICATION (Alumni side) ===
+      if (status === "Shortlisted") {
+        addNotification(
+          "Application Shortlisted",
+          `You shortlisted ${app.student_name}'s application for this job.`,
+          "alumni"
+        );
+      } else if (status === "Rejected") {
+        addNotification(
+          "Application Rejected",
+          `You rejected ${app.student_name}'s application for this job.`,
+          "alumni"
+        );
+      }
+      
+      // Note: Student notifications will be generated when they view their applications
+
       toast.success(`Applicant ${status.toLowerCase()}!`);
     } catch (err) {
       console.error("Error updating status:", err);

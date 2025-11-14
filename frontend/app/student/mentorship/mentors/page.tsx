@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { addNotification } from "@/lib/notificationUtils";
 
 export default function MentorsListPage() {
   const [mentors, setMentors] = useState<any[]>([]);
@@ -50,6 +51,14 @@ export default function MentorsListPage() {
       toast.success("Mentorship request sent successfully!");
 
       setRequestedMentors((prev) => [...prev, mentorId]);
+      
+      // Notify alumni about new mentorship request
+      addNotification(
+        "New Mentorship Request",
+        "A student has requested mentorship from you. Check your mentorship requests to review.",
+        "alumni"
+      );
+
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Request failed.");
     }

@@ -5,15 +5,24 @@ import { getNotifications, markAsRead, markAllAsRead } from "@/lib/notificationU
 import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
 import { Check, Bell, BellRing } from "lucide-react";
+import { getUserRole } from "@/lib/auth";
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [activeFilter, setActiveFilter] = useState<"all" | "unread">("all");
+  const [userRole, setUserRole] = useState<"student" | "alumni">("student");
 
   useEffect(() => {
+    // Detect user role
+    const role = getUserRole();
+    if (role === "alumni" || role === "student") {
+      setUserRole(role);
+    }
+    
     updateNotifications();
     // Mark all notifications as read when the page loads
-    markAllAsRead();
+    const currentRole = (role === "alumni" || role === "student") ? role : "student";
+    markAllAsRead(currentRole);
     
     // Set up storage event listener to sync across tabs
     const handleStorageChange = () => {
@@ -25,7 +34,9 @@ export default function NotificationsPage() {
   }, []);
 
   const updateNotifications = () => {
-    setNotifications(getNotifications());
+    const role = getUserRole();
+    const currentRole = (role === "alumni" || role === "student") ? role : "student";
+    setNotifications(getNotifications(currentRole));
   };
 
   const filteredNotifications = notifications.filter(n => 
@@ -35,12 +46,16 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleRead = (id: number) => {
-    markAsRead(id);
+    const role = getUserRole();
+    const currentRole = (role === "alumni" || role === "student") ? role : "student";
+    markAsRead(id, currentRole);
     updateNotifications();
   };
 
   const handleMarkAllAsRead = () => {
-    markAllAsRead();
+    const role = getUserRole();
+    const currentRole = (role === "alumni" || role === "student") ? role : "student";
+    markAllAsRead(currentRole);
     updateNotifications();
   };
 

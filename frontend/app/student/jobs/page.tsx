@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { addNotification } from "@/lib/notificationUtils";
 
 export default function StudentJobsPage() {
   const [jobs, setJobs] = useState<any[]>([]);
@@ -34,8 +35,17 @@ export default function StudentJobsPage() {
   const handleApply = async (jobId: number) => {
     try {
       await api.post("/student/jobs/apply", { job_id: jobId });
+
       toast.success("Successfully applied for the job!");
       setAppliedJobs((prev) => [...prev, jobId]);
+      
+      // Notify alumni about new job application
+      addNotification(
+        "New Job Application",
+        "A student has applied for your posted job. Check your job applications to review.",
+        "alumni"
+      );
+
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Could not apply for the job.");
     }

@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { addNotification } from "@/lib/notificationUtils";
 
 export default function AppliedJobsPage() {
   const [applications, setApplications] = useState<any[]>([]);
@@ -16,7 +17,47 @@ export default function AppliedJobsPage() {
     const fetchApplications = async () => {
       try {
         const res = await api.get("/student/jobs/applied");
-        setApplications(res.data.data || res.data);
+        const fetchedApps = res.data.data || res.data;
+        setApplications(fetchedApps);
+
+        // Check for status changes and notify student
+        const notifiedApps = JSON.parse(localStorage.getItem("notified_job_applications") || "[]");
+        const newNotifiedApps: number[] = [];
+
+        fetchedApps.forEach((app: any) => {
+          const appId = app.application_id || app.job_id;
+          const wasNotified = notifiedApps.includes(appId);
+          
+          if (!wasNotified) {
+            if (app.status === "Shortlisted") {
+              addNotification(
+                "Job Application Accepted! 🎉",
+                `Congratulations! Your application for ${app.job_title || "the job"} at ${app.company || "the company"} has been shortlisted. The employer will contact you soon.`,
+                "student"
+              );
+              newNotifiedApps.push(appId);
+            } else if (app.status === "Rejected") {
+              addNotification(
+                "Job Application Update",
+                `Your application for ${app.job_title || "the job"} at ${app.company || "the company"} has been reviewed. Keep applying to other opportunities!`,
+                "student"
+              );
+              newNotifiedApps.push(appId);
+            } else if (app.status === "Hired") {
+              addNotification(
+                "Congratulations! You've Been Hired! 🎉🎉",
+                `Amazing news! You've been hired for ${app.job_title || "the job"} at ${app.company || "the company"}. Congratulations!`,
+                "student"
+              );
+              newNotifiedApps.push(appId);
+            }
+          }
+        });
+
+        // Update notified applications list
+        if (newNotifiedApps.length > 0) {
+          localStorage.setItem("notified_job_applications", JSON.stringify([...notifiedApps, ...newNotifiedApps]));
+        }
       } catch (err) {
         toast.error("Failed to load applied jobs");
       } finally {

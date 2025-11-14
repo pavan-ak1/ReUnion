@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { addNotification } from "@/lib/notificationUtils";
 
 export default function StudentRequestsPage() {
   const [requests, setRequests] = useState<any[]>([]);
@@ -16,7 +17,40 @@ export default function StudentRequestsPage() {
     const fetchRequests = async () => {
       try {
         const res = await api.get("/student/mentorship/requests");
-        setRequests(res.data.data || res.data);
+        const fetchedRequests = res.data.data || res.data;
+        setRequests(fetchedRequests);
+
+        // Check for status changes and notify student
+        const notifiedRequests = JSON.parse(localStorage.getItem("notified_mentorship_requests") || "[]");
+        const newNotifiedRequests: number[] = [];
+
+        fetchedRequests.forEach((req: any) => {
+          const reqId = req.request_id;
+          const wasNotified = notifiedRequests.includes(reqId);
+          
+          if (!wasNotified) {
+            if (req.status === "Accepted") {
+              addNotification(
+                "Mentorship Request Accepted! 🎉",
+                `Great news! Your mentorship request to ${req.mentor_name || "the mentor"} has been accepted. Check your mentorship dashboard for details.`,
+                "student"
+              );
+              newNotifiedRequests.push(reqId);
+            } else if (req.status === "Rejected") {
+              addNotification(
+                "Mentorship Request Update",
+                `Your mentorship request to ${req.mentor_name || "the mentor"} has been declined. Don't worry, you can apply to other mentors.`,
+                "student"
+              );
+              newNotifiedRequests.push(reqId);
+            }
+          }
+        });
+
+        // Update notified requests list
+        if (newNotifiedRequests.length > 0) {
+          localStorage.setItem("notified_mentorship_requests", JSON.stringify([...notifiedRequests, ...newNotifiedRequests]));
+        }
       } catch {
         toast.error("Failed to load mentorship requests");
       } finally {

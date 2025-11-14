@@ -50,14 +50,18 @@ export default function MentorshipRequestsPage() {
       if (status === "Accepted") {
         addNotification(
           "Mentorship Accepted",
-          `You accepted ${req.student_name}'s mentorship request.`
+          `You accepted ${req.student_name}'s mentorship request.`,
+          "alumni"
         );
       } else if (status === "Rejected") {
         addNotification(
           "Mentorship Rejected",
-          `You rejected ${req.student_name}'s mentorship request.`
+          `You rejected ${req.student_name}'s mentorship request.`,
+          "alumni"
         );
       }
+      
+      // Note: Student notifications will be generated when they view their mentorship requests
 
       toast.success(`Request ${status.toLowerCase()}!`);
     } catch (err) {

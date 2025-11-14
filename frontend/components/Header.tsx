@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Menu, X, Bell } from "lucide-react";
 import { useState, useEffect } from "react";
+import { NotificationBell } from "@/components/NotificationBell";
 
 interface HeaderProps {
   links?: { name: string; href: string }[];
@@ -64,9 +65,7 @@ export default function Header({
         {dashboardLinks && (
           <>
             <div className="flex items-center gap-4">
-              <Link href="/notifications" className="text-gray-200 hover:text-white transition-colors">
-                <Bell className="h-5 w-5" />
-              </Link>
+              <NotificationBell />
               <Link
                 href={
                   dashboardHome.includes("student")
@@ -153,6 +152,9 @@ export default function Header({
 
           {dashboardLinks && (
             <>
+              <div className="flex items-center justify-center">
+                <NotificationBell />
+              </div>
               <Link
                 href={
                   dashboardHome.includes("student")
