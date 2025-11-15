@@ -118,6 +118,23 @@ export default function StudentDashboard() {
           </p>
         </div>
 
+        <section className="border-t border-white pt-8 pb-10">
+  <h2 className="text-3xl font-bold text-white mb-4">Alumni Directory</h2>
+
+  <p className="text-gray-400 mb-4">
+    Browse alumni profiles, academic history, and current professional roles.
+  </p>
+
+  <div className="text-sm space-y-3">
+    <Link
+      href="/student/alumni"
+      className="block text-cyan-400 hover:underline font-medium"
+    >
+      View All Alumni →
+    </Link>
+  </div>
+</section>
+
         {/* === Events Section === */}
         <section className="border-t border-white pt-8">
           <h2 className="text-3xl font-bold text-white mb-4">Upcoming Events</h2>

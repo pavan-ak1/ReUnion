@@ -9,12 +9,18 @@ import {
   getStudentRequests,
   getMentorshipRequests,
   respondToMentorshipRequest,
+  getMentorPublicProfile,
 } from "../controllers/mentorshipController.js";
 import { verifyAlumni,verifyStudent } from "../middleware/authMiddleware.js";
 
 const router:Router = express.Router();
+console.log("mentorRoutes loaded");
 
-
+router.get(
+  "/student/mentorship/mentors/:mentorId",
+  verifyStudent,
+  getMentorPublicProfile
+);
 //students routes
 
 // View all available mentors
@@ -41,5 +47,6 @@ router.put(
   verifyAlumni,
   respondToMentorshipRequest
 );
+// Get full mentor profile by mentor_id (Student access)
 
 export default router;

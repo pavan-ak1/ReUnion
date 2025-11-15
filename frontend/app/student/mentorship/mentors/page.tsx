@@ -5,33 +5,39 @@ import api from "@/lib/api";
 import Link from "next/link";
 import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { addNotification } from "@/lib/notificationUtils";
+import { ToastContainer } from "react-toastify";
 
 export default function MentorsListPage() {
   const [mentors, setMentors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [requestedMentors, setRequestedMentors] = useState<number[]>([]);
+
+  // Stores { mentorId: "Pending" | "Accepted" | "Rejected" }
+  const [mentorStatuses, setMentorStatuses] = useState<Record<number, string>>({});
 
   useEffect(() => {
     const fetchMentors = async () => {
       try {
         setLoading(true);
 
-        // ✅ FETCH AVAILABLE MENTORS
+        // Fetch mentors
         const mentorsRes = await api.get("/student/mentorship/mentors");
         setMentors(mentorsRes.data.data || mentorsRes.data || []);
 
-        // ✅ FETCH STUDENT REQUESTS
+        // Fetch student requests
         try {
           const reqRes = await api.get("/student/mentorship/requests");
-          const alreadyRequested = (reqRes.data.data || []).map(
-            (r: any) => r.mentor_id
-          );
-          setRequestedMentors(alreadyRequested);
+
+          const statusMap: Record<number, string> = {};
+          (reqRes.data.data || []).forEach((r: any) => {
+            statusMap[r.mentor_id] = r.status; // Pending | Accepted | Rejected
+          });
+
+          setMentorStatuses(statusMap);
         } catch {
-          setRequestedMentors([]);
+          setMentorStatuses({});
         }
       } catch (err: any) {
         toast.error(err.response?.data?.message || "Failed to load mentors.");
@@ -43,22 +49,24 @@ export default function MentorsListPage() {
     fetchMentors();
   }, []);
 
-  // ✅ FIXED REQUEST SENDER — NO DOUBLE API PREFIX
   const handleRequest = async (mentorId: number) => {
     try {
       await api.post("/student/mentorship/request", { mentor_id: mentorId });
 
       toast.success("Mentorship request sent successfully!");
 
-      setRequestedMentors((prev) => [...prev, mentorId]);
-      
-      // Notify alumni about new mentorship request
+      // Update local status immediately
+      setMentorStatuses((prev) => ({
+        ...prev,
+        [mentorId]: "Pending",
+      }));
+
+      // Notify the alumni mentor
       addNotification(
         "New Mentorship Request",
         "A student has requested mentorship from you. Check your mentorship requests to review.",
         "alumni"
       );
-
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Request failed.");
     }
@@ -97,36 +105,59 @@ export default function MentorsListPage() {
 
         {mentors.length > 0 ? (
           <div className="space-y-10">
-            {mentors.map((mentor) => (
-              <div key={mentor.mentor_id} className="border-t border-white/10 pt-6">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-2xl font-semibold text-white mb-1">
-                      {mentor.mentor_name}
-                    </h2>
-                    <p className="text-gray-400 text-sm">
-                      {mentor.degree} • {mentor.department}
-                    </p>
-                    <p className="text-gray-400 text-sm mt-1">{mentor.mentor_email}</p>
-                  </div>
+            {mentors.map((mentor) => {
+              const status = mentorStatuses[mentor.mentor_id]; // Pending | Accepted | Rejected | undefined
 
-                  <button
-                    onClick={() => handleRequest(mentor.mentor_id)}
-                    disabled={
-                      requestedMentors.includes(mentor.mentor_id) ||
-                      mentor.availability === false
-                    }
-                    className="px-5 py-2 border border-white/20 rounded-md"
-                  >
-                    {requestedMentors.includes(mentor.mentor_id)
-                      ? "Requested"
-                      : mentor.availability
-                      ? "Request Mentorship"
-                      : "Unavailable"}
-                  </button>
+              return (
+                <div key={mentor.mentor_id} className="border-t border-white/10 pt-6">
+                  <div className="flex justify-between items-center">
+                    {/* Left Content */}
+                    <div>
+                      <h2 className="text-2xl font-semibold text-white mb-1">
+                        {mentor.mentor_name}
+                      </h2>
+                      <p className="text-gray-400 text-sm">
+                        {mentor.degree} • {mentor.department}
+                      </p>
+                      <p className="text-gray-400 text-sm mt-1">{mentor.mentor_email}</p>
+                    </div>
+
+                    {/* Right Buttons */}
+                    <div className="flex items-center">
+
+                      {/* Request Button */}
+                      <button
+                        onClick={() => handleRequest(mentor.mentor_id)}
+                        disabled={
+                          status === "Pending" ||
+                          status === "Accepted" ||
+                          mentor.availability === false
+                        }
+                        className="px-5 py-2 border border-white/20 rounded-md"
+                      >
+                        {status === "Accepted"
+                          ? "Accepted"
+                          : status === "Pending"
+                          ? "Requested"
+                          : mentor.availability
+                          ? "Request Mentorship"
+                          : "Unavailable"}
+                      </button>
+
+                      {/* View Profile Button for Accepted Mentors */}
+                      {status === "Accepted" && (
+                        <Link
+                          href={`/student/mentorship/mentors/${mentor.mentor_id}`}
+                          className="ml-4 px-4 py-2 border border-cyan-400 text-cyan-400 rounded-md text-sm hover:bg-cyan-400 hover:text-black transition"
+                        >
+                          View Profile
+                        </Link>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-center text-gray-400 mt-20 text-lg">

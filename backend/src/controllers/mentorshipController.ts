@@ -395,4 +395,50 @@ export const respondToMentorshipRequest = async (req: Request, res: Response) =>
 };
 
 
+export const getMentorPublicProfile = async (req: Request, res: Response) => {
+  const client = await pool.connect();
+
+  try {
+    const { mentorId } = req.params;
+
+    const query = await client.query(
+      `
+      SELECT 
+        m.alumni_id AS mentor_id,
+        u.name,
+        u.email,
+        a.degree,
+        a.department,
+        m.expertise,
+        m.availability,
+        a.current_position,
+        a.company,
+        a.location
+      FROM mentors m
+      JOIN alumni a ON a.user_id = m.alumni_id
+      JOIN users u ON u.user_id = m.alumni_id
+      WHERE m.alumni_id = $1
+      `,
+      [mentorId]
+    );
+
+    if (query.rows.length === 0) {
+      return res.status(404).json({ message: "Mentor profile not found" });
+    }
+
+    return res.status(200).json({
+      message: "Mentor profile fetched successfully",
+      data: query.rows[0],
+    });
+
+  } catch (error) {
+    console.error("Error fetching mentor public profile:", error);
+    return res.status(500).json({
+      message: "Server error while fetching mentor profile",
+    });
+  } finally {
+    client.release();
+  }
+};
+
 

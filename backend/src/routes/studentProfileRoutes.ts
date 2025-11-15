@@ -9,5 +9,5 @@ router.get('/profile', verifyStudent, getStudentProfile)
 
 router.put('/profile/update', verifyStudent, updateStudentProfile);
 
-router.get('/student/allAlumni', getAllAlumni)
+router.get('/allAlumni', getAllAlumni)
 export default router;
