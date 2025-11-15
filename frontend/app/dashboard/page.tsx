@@ -1,14 +1,16 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { getCookie } from "@/lib/cookies";
 
 export default function DashboardRedirect() {
   const [status, setStatus] = useState("Checking authentication...");
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem("token");
-      const userString = localStorage.getItem("user");
+      const token = getCookie("token");
+      const userString = getCookie("user");
 
       if (!token || !userString) {
         console.warn("[Auth] No token or user found → redirecting to /signin");

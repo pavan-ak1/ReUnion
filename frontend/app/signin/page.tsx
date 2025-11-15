@@ -6,6 +6,7 @@ import { Eye, EyeOff, LogIn } from "lucide-react";
 import Aurora from "@/components/Aurora";
 import api from "@/lib/api";
 import { toast, ToastContainer } from "react-toastify";
+import { setAuthToken, setCookie } from "@/lib/cookies";
 import "react-toastify/dist/ReactToastify.css";
 
 export default function SignInPage() {
@@ -41,13 +42,13 @@ export default function SignInPage() {
       if (res.data?.user) {
         const { token, user } = res.data;
 
-        // ✅ Store authentication details
-        localStorage.setItem("token", token);
-        localStorage.setItem("user", JSON.stringify(user));
+        // ✅ Store authentication details in cookies
+        setAuthToken(token);
+        setCookie("user", JSON.stringify(user));
 
         // ✅ NEW: store role separately for Header-based redirects
         if (user.role) {
-          localStorage.setItem("role", user.role);
+          setCookie("role", user.role);
         }
 
         toast.success("Signed in successfully!");

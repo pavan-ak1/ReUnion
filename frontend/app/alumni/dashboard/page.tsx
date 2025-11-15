@@ -5,12 +5,44 @@ import Link from "next/link";
 import api from "@/lib/api";
 import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
+import { getCookie } from "@/lib/cookies";
 
 export default function AlumniDashboard() {
   const [events, setEvents] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+
+  // Fetch user data and profile
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const userString = getCookie("user");
+      if (userString) {
+        try {
+          const userData = JSON.parse(userString);
+          console.log('Parsed alumni user data:', userData);
+          setUser(userData);
+          
+          // Fetch alumni profile to get name
+          try {
+            const profileRes = await api.get('/alumni/profile');
+            console.log('Alumni profile data:', profileRes.data);
+            if (profileRes.data) {
+              setUser((prev: any) => ({ ...prev, ...profileRes.data }));
+            }
+          } catch (profileError) {
+            console.error('Error fetching alumni profile:', profileError);
+          }
+        } catch (error) {
+          console.error("Error parsing user data:", error);
+        }
+      } else {
+        console.log('No user cookie found');
+      }
+    };
+    fetchUserData();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,6 +68,14 @@ export default function AlumniDashboard() {
     
     fetchData();
   }, []);
+
+  // Get display name for alumni
+  const getDisplayName = () => {
+    if (!user) return 'Alumni';
+    return user.name || user.first_name || user.fullName || user.full_name ||
+           user.firstName || user.display_name || user.displayName ||
+           (user.email ? user.email.split('@')[0] : 'Alumni');
+  };
 
   return (
     <div className="relative min-h-screen text-white overflow-hidden">
@@ -88,7 +128,7 @@ export default function AlumniDashboard() {
   {/* Page Title */}
   <div className="text-center">
     <h1 className="text-5xl sm:text-5xl font-bold mb-2 text-white">
-      Alumni Dashboard
+      Hello {getDisplayName()}!
     </h1>
     <p className="text-gray-400 text-sm">
       Manage your activities, events, and mentorships at one place.

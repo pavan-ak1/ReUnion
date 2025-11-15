@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { getCookie, deleteCookie } from '@/lib/cookies';
 
 interface User {
   id: string;
@@ -62,8 +63,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setUser(null);
       // Clear all cookies and local storage
-      document.cookie = 'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-      localStorage.clear();
+      deleteCookie('token');
+      deleteCookie('user');
+      deleteCookie('role');
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("role");
       sessionStorage.clear();
       router.push('/signin');
     }

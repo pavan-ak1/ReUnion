@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Menu, X, Bell } from "lucide-react";
 import { useState, useEffect } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
+import { getCookie, deleteCookie } from "@/lib/cookies";
 
 interface HeaderProps {
   links?: { name: string; href: string }[];
@@ -26,7 +27,7 @@ export default function Header({
   // Detect user role from storage
   useEffect(() => {
     const role =
-      localStorage.getItem("role") ||
+      getCookie("role") ||
       sessionStorage.getItem("role") ||
       ""; // 'student' or 'alumni'
 
@@ -88,7 +89,9 @@ export default function Header({
             <Link
               href="/signin"
               onClick={() => {
-                localStorage.clear();
+                deleteCookie('token');
+                deleteCookie('user');
+                deleteCookie('role');
                 sessionStorage.clear();
               }}
               className="flex items-center justify-center gap-2
@@ -168,7 +171,9 @@ export default function Header({
               </Link>
               <button
                 onClick={() => {
-                  localStorage.clear();
+                  deleteCookie('token');
+                  deleteCookie('user');
+                  deleteCookie('role');
                   sessionStorage.clear();
                   window.location.href = "/signin";
                 }}

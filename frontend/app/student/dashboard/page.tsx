@@ -6,6 +6,7 @@ import api from "@/lib/api";
 import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
 import { toast, ToastContainer } from "react-toastify";
+import { getCookie } from "@/lib/cookies";
 import "react-toastify/dist/ReactToastify.css";
 
 export default function StudentDashboard() {
@@ -13,6 +14,49 @@ export default function StudentDashboard() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+
+  // Get user data immediately on component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const userString = getCookie("user");
+      console.log('User cookie data:', userString);
+      if (userString) {
+        try {
+          const userData = JSON.parse(userString);
+          console.log('Parsed user data:', userData);
+          setUser(userData);
+          
+          // Fetch user profile to get name
+          try {
+            const profileRes = await api.get('/profile');
+            console.log('Profile data:', profileRes.data);
+            if (profileRes.data?.data) {
+              setUser((prev: any) => ({ ...prev, ...profileRes.data.data }));
+            }
+          } catch (profileError) {
+            console.error('Error fetching profile:', profileError);
+          }
+        } catch (error) {
+          console.error("Error parsing user data:", error);
+        }
+      } else {
+        console.log('No user cookie found');
+      }
+    };
+    
+    fetchUserData();
+  }, []);
+
+  // Extract name from profile data
+  const getDisplayName = () => {
+    if (!user) return 'Student';
+    
+    // Try different name fields from profile
+    return user.name || user.first_name || user.fullName || user.full_name || 
+           user.firstName || user.display_name || user.displayName || 
+           (user.email ? user.email.split('@')[0] : 'Student');
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -67,7 +111,7 @@ export default function StudentDashboard() {
         {/* Page Title */}
         <div className="text-center">
           <h1 className="text-5xl sm:text-5xl font-bold mb-2 text-white">
-            Student Dashboard
+            Hello {getDisplayName()}!
           </h1>
           <p className="text-gray-400 text-sm">
             Manage your events, job applications, and mentorship connections.

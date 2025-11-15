@@ -41,8 +41,15 @@ export default function StudentEventsPage() {
       );
     } catch (err: any) {
       // The API interceptor will handle 401 redirects
-      if (err.response?.status !== 401) {
-        toast.error(err.response?.data?.message || "Could not register for event.");
+      if (err.status !== 401) {
+        // Check if already registered error
+        if (err.status === 409 || 
+            err.message?.toLowerCase().includes('already registered') ||
+            err.data?.message?.toLowerCase().includes('already registered')) {
+          toast.info("You are already registered for this event!");
+        } else {
+          toast.error(err.message || err.data?.message || "Could not register for the event");
+        }
       }
     } finally {
       setRegisteringEvent(null);
