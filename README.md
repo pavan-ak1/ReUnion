@@ -268,6 +268,7 @@ backend/
 
 **Pavan A. Kustagi**
 B.Tech CSE, UVCE
+---
 **Prateek Bhat**
 B.Tech CSE, UVCE
 
