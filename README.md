@@ -160,18 +160,19 @@ Student requests to alumni mentors.
 
 | Method   | Route                                        | Description                   |
 | -------- | -------------------------------------------- | ----------------------------- |
-| `GET`    | `/api/v1/profile`                    | Get student profile           |
-| `PUT`    | `/api/v1/profile/update`             | Update student profile        |
-| `GET`    | `/api/v1/events`                     | View all available events     |
+| `GET`    | `/api/v1/profile`                            | Get student profile           |
+| `PUT`    | `/api/v1/profile/update`                     | Update student profile        |
+| `GET`    | `/api/v1/events`                             | View all available events     |
 | `POST`   | `/api/v1/student/events/register`            | Register for an event         |
 | `DELETE` | `/api/v1/student/events/unregister/:eventId` | Cancel event registration     |
-| `GET`    | `/api/v1/student/events`          | View registered events        |
-| `GET`    | `/api/v1/jobs`                       | View all jobs                 |
+| `GET`    | `/api/v1/student/events`                     | View registered events        |
+| `GET`    | `/api/v1/jobs`                               | View all jobs                 |
 | `POST`   | `/api/v1/student/jobs/apply`                 | Apply for a job               |
 | `GET`    | `/api/v1/student/jobs/applied`               | View applied jobs             |
 | `GET`    | `/api/v1/student/mentorship/mentors`         | View available mentors        |
 | `POST`   | `/api/v1/student/mentorship/request`         | Send mentorship request       |
 | `GET`    | `/api/v1/student/mentorship/requests`        | View mentorship requests sent |
+| `GET`    | `/api/v1/student/allAlumni                   | View all Alumnis              |
 
 ---
 

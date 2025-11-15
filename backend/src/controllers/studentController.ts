@@ -124,3 +124,29 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
     client.release();
   }
 };
+
+
+
+export const getAllAlumni = async(req:Request, res:Response)=>{
+  const client = await pool.connect();
+
+  try{
+    const result  = await client.query('select u.name,u.email, a.degree, a.department, a.current_position, a.company, a.location from users u join alumni a on a.user_id = u.user_id');
+    if (result.rows.length === 0) {
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ message: "Alumni list not found" });
+    }
+    res.status(StatusCodes.OK).json({
+      message: "Profile fetched successfully",
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching student profile:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: "Server error while fetching profile" });
+  } finally {
+    client.release();
+  }
+};
