@@ -12,7 +12,7 @@ export default function AlumniList() {
   useEffect(() => {
     const fetchAlumni = async () => {
       try {
-        const res = await api.get("/student/allAlumni", { withCredentials: true });
+        const res = await api.get("/alumni", { withCredentials: true });
         setAlumni(res.data.data || []);
       } catch (err) {
         console.error("Failed to fetch alumni:", err);
