@@ -172,7 +172,7 @@ Student requests to alumni mentors.
 | `GET`    | `/api/v1/student/mentorship/mentors`         | View available mentors        |
 | `POST`   | `/api/v1/student/mentorship/request`         | Send mentorship request       |
 | `GET`    | `/api/v1/student/mentorship/requests`        | View mentorship requests sent |
-| `GET`    | `/api/v1/student/allAlumni                   | View all Alumnis              |
+| `GET`    | `/api/v1/student/allAlumni`                   | View all Alumnis              |
 
 ---
 
@@ -268,8 +268,8 @@ backend/
 
 **Pavan A. Kustagi**
 B.Tech CSE, UVCE
+---
 **Prateek Bhat**
 B.Tech CSE, UVCE
-
 ---
 
