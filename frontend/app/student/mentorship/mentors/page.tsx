@@ -13,18 +13,32 @@ import { ToastContainer } from "react-toastify";
 export default function MentorsListPage() {
   const [mentors, setMentors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    total: 0,
+    limit: 10,
+    hasNext: false,
+    hasPrev: false
+  });
 
   // Stores { mentorId: "Pending" | "Accepted" | "Rejected" }
   const [mentorStatuses, setMentorStatuses] = useState<Record<number, string>>({});
 
   useEffect(() => {
-    const fetchMentors = async () => {
+    const fetchMentors = async (page = 1) => {
       try {
         setLoading(true);
 
-        // Fetch mentors
-        const mentorsRes = await api.get("/student/mentorship/mentors");
-        setMentors(mentorsRes.data.data || mentorsRes.data || []);
+        // Fetch mentors with pagination
+        const mentorsRes = await api.get(`/student/mentorship/mentors?page=${page}&limit=${pagination.limit}`);
+        const mentorsData = mentorsRes.data.data || mentorsRes.data || [];
+        setMentors(mentorsData);
+        
+        // Set pagination data
+        if (mentorsRes.data.pagination) {
+          setPagination(mentorsRes.data.pagination);
+        }
 
         // Fetch student requests
         try {
@@ -46,8 +60,12 @@ export default function MentorsListPage() {
       }
     };
 
-    fetchMentors();
-  }, []);
+    fetchMentors(pagination.currentPage);
+  }, [pagination.currentPage, pagination.limit]);
+
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, currentPage: page }));
+  };
 
   const handleRequest = async (mentorId: number) => {
     try {
@@ -163,6 +181,43 @@ export default function MentorsListPage() {
           <p className="text-center text-gray-400 mt-20 text-lg">
             No mentors are available currently.
           </p>
+        )}
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 mt-12">
+            <button
+              onClick={() => handlePageChange(pagination.currentPage - 1)}
+              disabled={!pagination.hasPrev}
+              className="px-4 py-2 border border-white/20 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+            >
+              Previous
+            </button>
+
+            <div className="flex gap-1">
+              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  onClick={() => handlePageChange(pageNum)}
+                  className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                    pageNum === pagination.currentPage
+                      ? "bg-purple-500 text-white"
+                      : "border border-white/20 hover:bg-white/10"
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => handlePageChange(pagination.currentPage + 1)}
+              disabled={!pagination.hasNext}
+              className="px-4 py-2 border border-white/20 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/10 transition-colors"
+            >
+              Next
+            </button>
+          </div>
         )}
       </main>
 

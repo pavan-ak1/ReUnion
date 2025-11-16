@@ -11,12 +11,28 @@ export default function StudentEventsPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [registeringEvent, setRegisteringEvent] = useState<number | null>(null);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalRecords: 0,
+    recordsPerPage: 10,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await api.get("/events");
+        const res = await api.get("/events", {
+          params: {
+            page: pagination.currentPage,
+            limit: pagination.recordsPerPage
+          }
+        });
         setEvents(res.data.data || res.data);
+        if (res.data.pagination) {
+          setPagination(res.data.pagination);
+        }
       } catch (err) {
         toast.error("Failed to load events");
       } finally {
@@ -24,7 +40,7 @@ export default function StudentEventsPage() {
       }
     };
     fetchEvents();
-  }, []);
+  }, [pagination.currentPage]);
 
   const handleRegister = async (eventId: number) => {
     setRegisteringEvent(eventId);
@@ -104,7 +120,11 @@ export default function StudentEventsPage() {
         {/* === Events List === */}
         {events.length > 0 ? (
           <div className="space-y-10">
-            {events.map((event) => (
+            {events.map((event) => {
+              const eventDate = new Date(event.date);
+              const isEventEnded = eventDate < new Date();
+              
+              return (
               <div
                 key={event.event_id}
                 className="border-t border-white/10 pt-6 text-left"
@@ -116,25 +136,34 @@ export default function StudentEventsPage() {
                     </h2>
                     <p className="text-gray-400 text-sm">
                       {event.location} •{" "}
-                      {new Date(event.date).toDateString()}
+                      {eventDate.toDateString()}
+                      {isEventEnded && (
+                        <span className="ml-2 px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-md">
+                          Event Ended
+                        </span>
+                      )}
                     </p>
                   </div>
 
                   <button
                     onClick={() => handleRegister(event.event_id)}
-                    disabled={registeringEvent === event.event_id || event.isRegistered}
+                    disabled={registeringEvent === event.event_id || event.isRegistered || isEventEnded}
                     className={`mt-4 sm:mt-0 px-5 py-2 border rounded-md text-sm transition-all duration-200 ${
                       event.isRegistered 
                         ? 'border-green-500 text-green-500 cursor-default' 
-                        : registeringEvent === event.event_id
-                          ? 'border-gray-500 text-gray-500 cursor-wait'
-                          : 'border-white/20 text-white hover:bg-white hover:text-black'
+                        : isEventEnded
+                          ? 'border-gray-600 text-gray-500 cursor-not-allowed'
+                          : registeringEvent === event.event_id
+                            ? 'border-gray-500 text-gray-500 cursor-wait'
+                            : 'border-white/20 text-white hover:bg-white hover:text-black'
                     }`}
                   >
                     {event.isRegistered 
                       ? 'Registered'
-                      : registeringEvent === event.event_id 
-                        ? 'Registering...'
+                      : isEventEnded
+                        ? 'Event Ended'
+                        : registeringEvent === event.event_id 
+                          ? 'Registering...'
                         : 'Register'}
                   </button>
                 </div>
@@ -145,12 +174,46 @@ export default function StudentEventsPage() {
                   </p>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-center text-gray-400 mt-20 text-lg">
             No upcoming events available.
           </p>
+        )}
+
+        {/* === Pagination Controls === */}
+        {pagination.totalPages > 1 && (
+          <div className="flex justify-center items-center space-x-4 mt-12">
+            <button
+              onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
+              disabled={!pagination.hasPrevPage}
+              className={`px-4 py-2 rounded-md text-sm transition-all duration-200 ${
+                pagination.hasPrevPage
+                  ? 'border border-white/20 text-white hover:bg-white hover:text-black'
+                  : 'border border-gray-600 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              Previous
+            </button>
+            
+            <span className="text-gray-400 text-sm">
+              Page {pagination.currentPage} of {pagination.totalPages}
+            </span>
+            
+            <button
+              onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
+              disabled={!pagination.hasNextPage}
+              className={`px-4 py-2 rounded-md text-sm transition-all duration-200 ${
+                pagination.hasNextPage
+                  ? 'border border-white/20 text-white hover:bg-white hover:text-black'
+                  : 'border border-gray-600 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              Next
+            </button>
+          </div>
         )}
       </main>
 

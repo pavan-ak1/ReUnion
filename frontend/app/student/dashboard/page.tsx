@@ -5,6 +5,7 @@ import Link from "next/link";
 import api from "@/lib/api";
 import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
+import AlumniYearChart from "@/components/AlumniYearChart";
 import { toast, ToastContainer } from "react-toastify";
 import { getCookie } from "@/lib/cookies";
 import "react-toastify/dist/ReactToastify.css";
@@ -13,6 +14,7 @@ export default function StudentDashboard() {
   const [events, setEvents] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [yearStats, setYearStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
@@ -61,14 +63,16 @@ export default function StudentDashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [e, j, r] = await Promise.all([
+        const [e, j, r, y] = await Promise.all([
           api.get("/events"),
           api.get("/jobs"),
           api.get("/student/mentorship/requests"),
+          api.get("/alumni/year-stats")
         ]);
         setEvents(e.data.data || []);
         setJobs(j.data.data || []);
         setRequests(r.data.data || []);
+        setYearStats(y.data.data || []);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
         toast.error("Failed to load dashboard data");
@@ -117,6 +121,9 @@ export default function StudentDashboard() {
             Manage your events, job applications, and mentorship connections.
           </p>
         </div>
+
+        {/* Alumni Year Statistics Chart */}
+        <AlumniYearChart data={yearStats} />
 
         <section className="border-t border-white pt-8 pb-10">
   <h2 className="text-3xl font-bold text-white mb-4">Alumni Directory</h2>

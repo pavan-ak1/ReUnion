@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import api from "@/lib/api";
 import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
-
-import AlumniYearChart from "@/components/AlumniYearChart";
 
 import {
   Select,
@@ -30,55 +28,65 @@ export default function AlumniList() {
 
   const debounceRef = useRef<number | null>(null);
 
-  // YEAR STATS FOR CHART
-  const [yearStats, setYearStats] = useState<any[]>([
-    { graduation_year: 2020, total_alumni: 5 },
-    { graduation_year: 2021, total_alumni: 8 },
-    { graduation_year: 2022, total_alumni: 12 },
-    { graduation_year: 2023, total_alumni: 15 },
-  ]);
+
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalRecords: 0,
+    recordsPerPage: 10,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
 
   useEffect(() => {
-  const fetchYearStats = async () => {
+  const fetchFilterOptions = async () => {
     try {
-      console.log("Fetching year stats from API...");
-      const res = await api.get("/alumni/year-stats", {
+      console.log("Fetching filter options from API...");
+      const res = await api.get("/alumni/filter-options", {
         withCredentials: true,
       });
 
-      console.log("Year stats API response:", res);
-      console.log("Year stats data:", res.data);
-      console.log("Year stats data.data:", res.data.data);
-      
-      const statsData = res.data.data || [];
-      console.log("Final stats data to set:", statsData);
-      setYearStats(statsData);
+      console.log("Filter options API response:", res);
+      const optionsData = res.data.data || {};
+      setFilterOptions(optionsData);
     } catch (err: any) {
-      console.error("Failed to load year stats:", err);
+      console.error("Failed to load filter options:", err);
       console.error("Error details:", err.response?.data || err.message);
-      // Set empty array to prevent chart from breaking
-      setYearStats([]);
+      // Set empty arrays to prevent errors
+      setFilterOptions({
+        companies: [],
+        departments: [],
+        degrees: [],
+        locations: [],
+        graduationYears: []
+      });
     }
   };
 
-  fetchYearStats();
+  fetchFilterOptions();
 }, []);
 
 
 
   // Fetch alumni with filters
-  const fetchAlumni = async (params: Record<string, string | undefined> = {}) => {
+  const fetchAlumni = useCallback(async (params: Record<string, string | number | undefined> = {}) => {
     setLoading(true);
     try {
       const res = await api.get("/alumni", { params, withCredentials: true });
       setAlumni(res.data.data || []);
-    } catch (err) {
+      
+      // Update pagination state if available
+      if (res.data.pagination) {
+        setPagination(res.data.pagination);
+      }
+    } catch (err: any) {
       console.error("Failed to fetch alumni:", err);
       setAlumni([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Initial fetch
   useEffect(() => {
@@ -117,7 +125,7 @@ export default function AlumniList() {
     }
 
   const timeout = window.setTimeout(() => {
-    fetchAlumni(buildParams());
+    fetchAlumni({ ...buildParams(), page: 1, limit: pagination.recordsPerPage });
   }, 400);
 
   debounceRef.current = timeout;
@@ -125,7 +133,7 @@ export default function AlumniList() {
   return () => {
     clearTimeout(timeout);
   };
-}, [search]);
+}, [search, pagination.recordsPerPage]);
 
 
   // Normalize ("all" -> "")
@@ -135,31 +143,40 @@ export default function AlumniList() {
   const onCompanyChange = (val: string) => {
     const v = normalize(val);
     setCompany(v);
-    fetchAlumni({ ...buildParams(), company: v || undefined });
+    fetchAlumni({ ...buildParams(), company: v || undefined, page: 1, limit: pagination.recordsPerPage });
   };
 
   const onDepartmentChange = (val: string) => {
     const v = normalize(val);
     setDepartment(v);
-    fetchAlumni({ ...buildParams(), department: v || undefined });
+    fetchAlumni({ ...buildParams(), department: v || undefined, page: 1, limit: pagination.recordsPerPage });
   };
 
   const onDegreeChange = (val: string) => {
     const v = normalize(val);
     setDegree(v);
-    fetchAlumni({ ...buildParams(), degree: v || undefined });
+    fetchAlumni({ ...buildParams(), degree: v || undefined, page: 1, limit: pagination.recordsPerPage });
   };
 
   const onLocationChange = (val: string) => {
     const v = normalize(val);
     setLocation(v);
-    fetchAlumni({ ...buildParams(), location: v || undefined });
+    fetchAlumni({ ...buildParams(), location: v || undefined, page: 1, limit: pagination.recordsPerPage });
   };
 
   const onGraduationYearChange = (val: string) => {
     const v = normalize(val);
     setGraduationYear(v);
-    fetchAlumni({ ...buildParams(), graduation_year: v || undefined });
+    fetchAlumni({ ...buildParams(), graduation_year: v || undefined, page: 1, limit: pagination.recordsPerPage });
+  };
+
+  // Pagination handlers
+  const onPageChange = (newPage: number) => {
+    fetchAlumni({ ...buildParams(), page: newPage, limit: pagination.recordsPerPage });
+  };
+
+  const onLimitChange = (newLimit: number) => {
+    fetchAlumni({ ...buildParams(), page: 1, limit: newLimit });
   };
 
   // Clear everything
@@ -170,16 +187,25 @@ export default function AlumniList() {
     setDegree("");
     setLocation("");
     setGraduationYear("");
-    fetchAlumni({});
+    setPagination({
+      currentPage: 1,
+      totalPages: 1,
+      totalRecords: 0,
+      recordsPerPage: 10,
+      hasNextPage: false,
+      hasPrevPage: false
+    });
+    fetchAlumni({ page: 1, limit: pagination.recordsPerPage });
   };
 
-  // Unique options
-  const uniq = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)));
-  const companyOptions = uniq(allAlumniSnapshot.map(a => a.company)).sort();
-  const departmentOptions = uniq(allAlumniSnapshot.map(a => a.department)).sort();
-  const degreeOptions = uniq(allAlumniSnapshot.map(a => a.degree)).sort();
-  const locationOptions = uniq(allAlumniSnapshot.map(a => a.location)).sort();
-  const graduationYearOptions = uniq(allAlumniSnapshot.map(a => a.graduation_year)).sort();
+  // Filter options state
+  const [filterOptions, setFilterOptions] = useState({
+    companies: [] as string[],
+    departments: [] as string[],
+    degrees: [] as string[],
+    locations: [] as string[],
+    graduationYears: [] as number[]
+  });
 
   if (loading)
     return (
@@ -211,9 +237,6 @@ export default function AlumniList() {
           Explore the registered alumni and their academic & professional background.
         </p>
 
-        {/* ⭐ NEW: YEAR-WISE BAR CHART */}
-        <AlumniYearChart data={yearStats} />
-
         {/* SEARCH + FILTERS */}
         <div className="space-y-6 mt-10">
           {/* Search */}
@@ -221,10 +244,16 @@ export default function AlumniList() {
             <div className="flex-1">
               <label className="text-sm text-gray-300 mb-1 block">Search Alumni</label>
               <input
+                key="search-input"
                 type="text"
                 placeholder="Search by name..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                  }
+                }}
                 className="w-full bg-white/5 border border-white/10 placeholder-gray-400 text-white 
                 p-3 rounded-lg focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 outline-none transition"
               />
@@ -240,7 +269,7 @@ export default function AlumniList() {
           </div>
 
           {/* Dropdown Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
             {/* COMPANY */}
             <div>
               <label className="text-sm text-gray-300 mb-1 block">Company</label>
@@ -250,7 +279,7 @@ export default function AlumniList() {
                 </SelectTrigger>
                 <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
                   <SelectItem value="all">All Companies</SelectItem>
-                  {companyOptions.map((c) => (
+                  {filterOptions.companies.map((c) => (
                     <SelectItem key={c} value={c}>
                       {c}
                     </SelectItem>
@@ -268,7 +297,7 @@ export default function AlumniList() {
                 </SelectTrigger>
                 <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
                   <SelectItem value="all">All Departments</SelectItem>
-                  {departmentOptions.map((d) => (
+                  {filterOptions.departments.map((d) => (
                     <SelectItem key={d} value={d}>
                       {d}
                     </SelectItem>
@@ -286,7 +315,7 @@ export default function AlumniList() {
                 </SelectTrigger>
                 <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
                   <SelectItem value="all">All Degrees</SelectItem>
-                  {degreeOptions.map((d) => (
+                  {filterOptions.degrees.map((d) => (
                     <SelectItem key={d} value={d}>
                       {d}
                     </SelectItem>
@@ -304,9 +333,27 @@ export default function AlumniList() {
                 </SelectTrigger>
                 <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
                   <SelectItem value="all">All Locations</SelectItem>
-                  {locationOptions.map((l) => (
+                  {filterOptions.locations.map((l) => (
                     <SelectItem key={l} value={l}>
                       {l}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* GRADUATION YEAR */}
+            <div>
+              <label className="text-sm text-gray-300 mb-1 block">Graduation Year</label>
+              <Select value={graduationYear || "all"} onValueChange={onGraduationYearChange}>
+                <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
+                  <SelectValue placeholder="All Years" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
+                  <SelectItem value="all">All Years</SelectItem>
+                  {filterOptions.graduationYears.map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -356,8 +403,54 @@ export default function AlumniList() {
           </table>
         </div>
 
+        {/* Pagination Controls */}
+        {pagination.totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-300 text-sm">Records per page:</span>
+              <select
+                value={pagination.recordsPerPage}
+                onChange={(e) => onLimitChange(Number(e.target.value))}
+                className="bg-white/10 border border-white/20 text-white px-3 py-1 rounded-lg text-sm focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 outline-none"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onPageChange(pagination.currentPage - 1)}
+                disabled={!pagination.hasPrevPage}
+                className="px-3 py-1 bg-white/10 border border-white/20 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition"
+              >
+                Previous
+              </button>
+
+              <span className="text-gray-300 text-sm px-3">
+                Page {pagination.currentPage} of {pagination.totalPages}
+              </span>
+
+              <button
+                onClick={() => onPageChange(pagination.currentPage + 1)}
+                disabled={!pagination.hasNextPage}
+                className="px-3 py-1 bg-white/10 border border-white/20 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition"
+              >
+                Next
+              </button>
+            </div>
+
+            <div className="text-gray-300 text-sm">
+              Showing {((pagination.currentPage - 1) * pagination.recordsPerPage) + 1} to{' '}
+              {Math.min(pagination.currentPage * pagination.recordsPerPage, pagination.totalRecords)} of {pagination.totalRecords} records
+            </div>
+          </div>
+        )}
+
         <p className="text-gray-400 text-center mt-6">
-          Total Alumni: <span className="text-cyan-400 font-semibold">{alumni.length}</span>
+          Total Alumni: <span className="text-cyan-400 font-semibold">{pagination.totalRecords}</span>
         </p>
 
       </main>

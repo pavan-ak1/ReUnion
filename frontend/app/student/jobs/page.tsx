@@ -13,15 +13,31 @@ export default function StudentJobsPage() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [appliedJobs, setAppliedJobs] = useState<number[]>([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalRecords: 0,
+    recordsPerPage: 10,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         const [allJobs, applied] = await Promise.all([
-          api.get("/jobs"),
+          api.get("/jobs", {
+            params: {
+              page: pagination.currentPage,
+              limit: pagination.recordsPerPage
+            }
+          }),
           api.get("/student/jobs/applied"),
         ]);
         setJobs(allJobs.data.data || allJobs.data);
+        if (allJobs.data.pagination) {
+          setPagination(allJobs.data.pagination);
+        }
         setAppliedJobs((applied.data.data || applied.data).map((j: any) => j.job_id));
       } catch {
         toast.error("Failed to load jobs");
@@ -30,7 +46,7 @@ export default function StudentJobsPage() {
       }
     };
     fetchJobs();
-  }, []);
+  }, [pagination.currentPage]);
 
   const handleApply = async (jobId: number) => {
     try {
@@ -99,7 +115,11 @@ export default function StudentJobsPage() {
         {/* === Jobs List === */}
         {jobs.length > 0 ? (
           <div className="space-y-10">
-            {jobs.map((job) => (
+            {jobs.map((job) => {
+              const deadlineDate = job.application_deadline ? new Date(job.application_deadline) : null;
+              const isDeadlineEnded = deadlineDate && deadlineDate < new Date();
+              
+              return (
               <div
                 key={job.job_id}
                 className="border-t border-white/10 pt-6 text-left"
@@ -111,21 +131,30 @@ export default function StudentJobsPage() {
                     </h2>
                     <p className="text-gray-400 text-sm">
                       {job.company} • {job.location || "—"}
+                      {isDeadlineEnded && (
+                        <span className="ml-2 px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-md">
+                          Deadline Ended
+                        </span>
+                      )}
                     </p>
                   </div>
 
                   <button
                     onClick={() => handleApply(job.job_id)}
-                    disabled={appliedJobs.includes(job.job_id)}
+                    disabled={appliedJobs.includes(job.job_id) || !!isDeadlineEnded}
                     className={`mt-4 sm:mt-0 px-5 py-2 rounded-md text-sm font-medium transition-all duration-200 border ${
                       appliedJobs.includes(job.job_id)
                         ? "border-gray-600 text-gray-400 cursor-not-allowed"
-                        : "border-white/20 text-white hover:bg-white hover:text-black"
+                        : isDeadlineEnded
+                          ? 'border-gray-600 text-gray-500 cursor-not-allowed'
+                          : "border-white/20 text-white hover:bg-white hover:text-black"
                     }`}
                   >
                     {appliedJobs.includes(job.job_id)
                       ? "Applied"
-                      : "Apply"}
+                      : isDeadlineEnded
+                        ? "Deadline Ended"
+                        : "Apply"}
                   </button>
                 </div>
 
@@ -144,12 +173,46 @@ export default function StudentJobsPage() {
                     : "Not specified"}
                 </p>
               </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-center text-gray-400 mt-20 text-lg">
             No job listings available at the moment.
           </p>
+        )}
+
+        {/* === Pagination Controls === */}
+        {pagination.totalPages > 1 && (
+          <div className="flex justify-center items-center space-x-4 mt-12">
+            <button
+              onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
+              disabled={!pagination.hasPrevPage}
+              className={`px-4 py-2 rounded-md text-sm transition-all duration-200 ${
+                pagination.hasPrevPage
+                  ? 'border border-white/20 text-white hover:bg-white hover:text-black'
+                  : 'border border-gray-600 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              Previous
+            </button>
+            
+            <span className="text-gray-400 text-sm">
+              Page {pagination.currentPage} of {pagination.totalPages}
+            </span>
+            
+            <button
+              onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
+              disabled={!pagination.hasNextPage}
+              className={`px-4 py-2 rounded-md text-sm transition-all duration-200 ${
+                pagination.hasNextPage
+                  ? 'border border-white/20 text-white hover:bg-white hover:text-black'
+                  : 'border border-gray-600 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              Next
+            </button>
+          </div>
         )}
       </main>
 

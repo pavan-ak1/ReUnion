@@ -14,17 +14,34 @@ interface Job {
   job_title: string;
   company: string;
   location: string;
+  application_deadline?: string;
 }
 
 export default function AlumniJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalRecords: 0,
+    recordsPerPage: 10,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const res = await api.get("/alumni/jobs");
+        const res = await api.get("/alumni/jobs", {
+          params: {
+            page: pagination.currentPage,
+            limit: pagination.recordsPerPage
+          }
+        });
         setJobs(res.data.data || res.data || []);
+        if (res.data.pagination) {
+          setPagination(res.data.pagination);
+        }
       } catch (err) {
         console.error("Error fetching jobs:", err);
         toast.error("Failed to load jobs.");
@@ -33,7 +50,7 @@ export default function AlumniJobsPage() {
       }
     };
     fetchJobs();
-  }, []);
+  }, [pagination.currentPage]);
 
   const handleDelete = async (jobId: number) => {
     if (!confirm("Are you sure you want to delete this job posting?")) return;
@@ -100,7 +117,11 @@ export default function AlumniJobsPage() {
 
           {jobs.length > 0 ? (
             <ul className="space-y-4">
-              {jobs.map((job) => (
+              {jobs.map((job) => {
+                const deadlineDate = job.application_deadline ? new Date(job.application_deadline) : null;
+                const isDeadlineEnded = deadlineDate && deadlineDate < new Date();
+                
+                return (
                 <li
                   key={job.job_id}
                   className="flex justify-between items-center border-b border-white/10 py-4"
@@ -111,6 +132,11 @@ export default function AlumniJobsPage() {
                     </p>
                     <p className="text-sm text-gray-400">
                       {job.company} · {job.location}
+                      {isDeadlineEnded && (
+                        <span className="ml-2 px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-md">
+                          Deadline Ended
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="flex gap-4 text-sm font-medium">
@@ -128,12 +154,46 @@ export default function AlumniJobsPage() {
                     </button>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           ) : (
             <p className="text-gray-400 italic text-center py-8">
               No job postings yet.
             </p>
+          )}
+
+          {/* === Pagination Controls === */}
+          {pagination.totalPages > 1 && (
+            <div className="flex justify-center items-center space-x-4 mt-8">
+              <button
+                onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage - 1 }))}
+                disabled={!pagination.hasPrevPage}
+                className={`px-4 py-2 rounded-md text-sm transition-all duration-200 ${
+                  pagination.hasPrevPage
+                    ? 'border border-white/20 text-white hover:bg-white hover:text-black'
+                    : 'border border-gray-600 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Previous
+              </button>
+              
+              <span className="text-gray-400 text-sm">
+                Page {pagination.currentPage} of {pagination.totalPages}
+              </span>
+              
+              <button
+                onClick={() => setPagination(prev => ({ ...prev, currentPage: prev.currentPage + 1 }))}
+                disabled={!pagination.hasNextPage}
+                className={`px-4 py-2 rounded-md text-sm transition-all duration-200 ${
+                  pagination.hasNextPage
+                    ? 'border border-white/20 text-white hover:bg-white hover:text-black'
+                    : 'border border-gray-600 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Next
+              </button>
+            </div>
           )}
         </section>
       </main>
