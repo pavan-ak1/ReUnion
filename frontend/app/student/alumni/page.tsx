@@ -1,27 +1,135 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "@/lib/api";
 import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
 
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+
 export default function AlumniList() {
   const [alumni, setAlumni] = useState<any[]>([]);
+  const [allAlumniSnapshot, setAllAlumniSnapshot] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // search + filters
+  const [search, setSearch] = useState("");
+  const [company, setCompany] = useState("");
+  const [department, setDepartment] = useState("");
+  const [degree, setDegree] = useState("");
+  const [location, setLocation] = useState("");
+
+  const debounceRef = useRef<number | null>(null);
+
+  // Fetch alumni with params
+  const fetchAlumni = async (params: Record<string, string | undefined> = {}) => {
+    setLoading(true);
+    try {
+      const res = await api.get("/alumni", { params, withCredentials: true });
+      setAlumni(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to fetch alumni:", err);
+      setAlumni([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial load
   useEffect(() => {
-    const fetchAlumni = async () => {
+    const initialLoad = async () => {
+      setLoading(true);
       try {
         const res = await api.get("/alumni", { withCredentials: true });
-        setAlumni(res.data.data || []);
+        const data = res.data.data || [];
+        setAlumni(data);
+        setAllAlumniSnapshot(data);
       } catch (err) {
-        console.error("Failed to fetch alumni:", err);
+        console.error("Failed initial fetch:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchAlumni();
+    initialLoad();
   }, []);
+
+  // Build query params
+  const buildParams = () => {
+    const params: Record<string, string | undefined> = {};
+    if (search) params.search = search;
+    if (company) params.company = company;
+    if (department) params.department = department;
+    if (degree) params.degree = degree;
+    if (location) params.location = location;
+    return params;
+  };
+
+  // Debounced search
+  useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = window.setTimeout(() => {
+      fetchAlumni(buildParams());
+    }, 400);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line
+  }, [search]);
+
+  // Convert "all" → "" for backend filters
+  const normalize = (val: string) => (val === "all" ? "" : val);
+
+  // Filter handlers
+  const onCompanyChange = (val: string) => {
+    const v = normalize(val);
+    setCompany(v);
+    fetchAlumni({ ...buildParams(), company: v || undefined });
+  };
+
+  const onDepartmentChange = (val: string) => {
+    const v = normalize(val);
+    setDepartment(v);
+    fetchAlumni({ ...buildParams(), department: v || undefined });
+  };
+
+  const onDegreeChange = (val: string) => {
+    const v = normalize(val);
+    setDegree(v);
+    fetchAlumni({ ...buildParams(), degree: v || undefined });
+  };
+
+  const onLocationChange = (val: string) => {
+    const v = normalize(val);
+    setLocation(v);
+    fetchAlumni({ ...buildParams(), location: v || undefined });
+  };
+
+  // Reset all filters
+  const clearAll = () => {
+    setSearch("");
+    setCompany("");
+    setDepartment("");
+    setDegree("");
+    setLocation("");
+    fetchAlumni({});
+  };
+
+  // Unique options
+  const uniq = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)));
+  const companyOptions = uniq(allAlumniSnapshot.map(a => a.company)).sort();
+  const departmentOptions = uniq(allAlumniSnapshot.map(a => a.department)).sort();
+  const degreeOptions = uniq(allAlumniSnapshot.map(a => a.degree)).sort();
+  const locationOptions = uniq(allAlumniSnapshot.map(a => a.location)).sort();
 
   if (loading)
     return (
@@ -43,25 +151,125 @@ export default function AlumniList() {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0B0B0B]/60 to-[#0B0B0B]" />
       </div>
 
-      {/* Header */}
       <Header
         logoText="ReUnion Student"
         accent="from-cyan-400 to-blue-500"
         dashboardLinks
       />
 
-      {/* Content */}
       <main className="relative z-10 max-w-6xl mx-auto px-6 py-24 sm:py-32 space-y-12">
-        <h1 className="text-4xl sm:text-5xl font-bold text-white text-center">
+        <h1 className="text-4xl sm:text-5xl font-bold text-center">
           Alumni Directory
         </h1>
-
-        <p className="text-gray-400 text-center max-w-2xl mx-auto mb-10">
+        <p className="text-gray-400 text-center max-w-2xl mx-auto">
           Explore the registered alumni and their academic & professional background.
         </p>
 
+        {/* Search + Filters */}
+        <div className="space-y-6 mt-10">
+          {/* Search */}
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex-1">
+              <label className="text-sm text-gray-300 mb-1 block">
+                Search Alumni
+              </label>
+              <input
+                type="text"
+                placeholder="Search by name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 placeholder-gray-400 text-white 
+                p-3 rounded-lg focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 outline-none transition"
+              />
+            </div>
+
+            <button
+              onClick={clearAll}
+              className="px-4 py-3 bg-white/10 border border-white/10 rounded-lg text-sm 
+              hover:bg-white/20 transition w-full md:w-auto"
+            >
+              Clear Filters
+            </button>
+          </div>
+
+          {/* Dropdown Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {/* COMPANY */}
+            <div>
+              <label className="text-sm text-gray-300 mb-1 block">Company</label>
+              <Select value={company || "all"} onValueChange={onCompanyChange}>
+                <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
+                  <SelectValue placeholder="All Companies" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
+                  <SelectItem value="all">All Companies</SelectItem>
+                  {companyOptions.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* DEPARTMENT */}
+            <div>
+              <label className="text-sm text-gray-300 mb-1 block">Department</label>
+              <Select value={department || "all"} onValueChange={onDepartmentChange}>
+                <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
+                  <SelectValue placeholder="All Departments" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {departmentOptions.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {d}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* DEGREE */}
+            <div>
+              <label className="text-sm text-gray-300 mb-1 block">Degree</label>
+              <Select value={degree || "all"} onValueChange={onDegreeChange}>
+                <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
+                  <SelectValue placeholder="All Degrees" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
+                  <SelectItem value="all">All Degrees</SelectItem>
+                  {degreeOptions.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {d}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* LOCATION */}
+            <div>
+              <label className="text-sm text-gray-300 mb-1 block">Location</label>
+              <Select value={location || "all"} onValueChange={onLocationChange}>
+                <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
+                  <SelectValue placeholder="All Locations" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locationOptions.map((l) => (
+                    <SelectItem key={l} value={l}>
+                      {l}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
         {/* TABLE */}
-        <div className="overflow-x-auto bg-white/5 backdrop-blur-md rounded-xl border border-white/10 shadow-xl">
+        <div className="overflow-x-auto bg-white/5 backdrop-blur-md rounded-xl border border-white/10 shadow-xl mt-10">
           <table className="min-w-full text-left text-sm">
             <thead className="bg-white/10 text-gray-200 uppercase text-xs tracking-wider">
               <tr>
@@ -90,11 +298,18 @@ export default function AlumniList() {
                   <td className="py-3 px-4">{al.location}</td>
                 </tr>
               ))}
+
+              {alumni.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-gray-400">
+                    No alumni found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Count */}
         <p className="text-gray-400 text-center mt-6">
           Total Alumni:{" "}
           <span className="text-cyan-400 font-semibold">{alumni.length}</span>

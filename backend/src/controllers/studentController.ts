@@ -126,26 +126,75 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
 };
 
 
-
-export const getAllAlumni = async(req:Request, res:Response)=>{
+export const getAllAlumni = async (req: Request, res: Response) => {
   const client = await pool.connect();
 
-  try{
-    const result  = await client.query('select u.name,u.email, a.degree, a.department, a.current_position, a.company, a.location from users u join alumni a on a.user_id = u.user_id');
-    if (result.rows.length === 0) {
-      return res
-        .status(StatusCodes.NOT_FOUND)
-        .json({ message: "Alumni list not found" });
+  try {
+    const search = req.query.search ? String(req.query.search) : "";
+    const department = req.query.department ? String(req.query.department) : "";
+    const degree = req.query.degree ? String(req.query.degree) : "";
+    const company = req.query.company ? String(req.query.company) : "";
+    const location = req.query.location ? String(req.query.location) : "";
+
+    let baseQuery = `
+      SELECT u.name, u.email, a.degree, a.department,
+             a.current_position, a.company, a.location
+      FROM users u
+      JOIN alumni a ON a.user_id = u.user_id
+      WHERE 1=1
+    `;
+
+    const params: any[] = [];
+    let index = 1;
+
+    // Search by name
+    if (search) {
+      baseQuery += ` AND LOWER(u.name) LIKE LOWER($${index})`;
+      params.push(`%${search}%`);
+      index++;
     }
+
+    // Filter by company
+    // Filter by company
+if (company) {
+  baseQuery += ` AND LOWER(a.company) LIKE LOWER($${index})`;
+  params.push(`%${company}%`);
+  index++;
+}
+
+// Filter by department
+if (department) {
+  baseQuery += ` AND LOWER(a.department) LIKE LOWER($${index})`;
+  params.push(`%${department}%`);
+  index++;
+}
+
+// Filter by degree
+if (degree) {
+  baseQuery += ` AND LOWER(a.degree) LIKE LOWER($${index})`;
+  params.push(`%${degree}%`);
+  index++;
+}
+
+// Filter by location
+if (location) {
+  baseQuery += ` AND LOWER(a.location) LIKE LOWER($${index})`;
+  params.push(`%${location}%`);
+  index++;
+}
+
+
+    const result = await client.query(baseQuery, params);
+
     res.status(StatusCodes.OK).json({
-      message: "Profile fetched successfully",
+      message: "Alumni fetched successfully",
       data: result.rows,
     });
   } catch (error) {
-    console.error("Error fetching student profile:", error);
+    console.error("Error fetching alumni:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ message: "Server error while fetching profile" });
+      .json({ message: "Server error while fetching alumni" });
   } finally {
     client.release();
   }
