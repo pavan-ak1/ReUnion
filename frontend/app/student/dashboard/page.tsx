@@ -125,7 +125,7 @@ export default function StudentDashboard() {
         {/* Alumni Year Statistics Chart */}
         <AlumniYearChart data={yearStats} />
 
-        <section className="border-t border-white pt-8 pb-10">
+        <section className="border-t border-white pt-8 ">
   <h2 className="text-3xl font-bold text-white mb-4">Alumni Directory</h2>
 
   <p className="text-gray-400 mb-4">
