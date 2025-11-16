@@ -114,6 +114,22 @@ export const getMentorshipProfile = async (req: Request, res: Response) => {
 export const getAvailableMentors = async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
+
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM mentors m
+      WHERE m.availability = TRUE
+    `;
+    
+    const countResult = await client.query(countQuery);
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / limit);
+
+    // Get paginated mentors
     const query = `
       SELECT 
         m.alumni_id AS mentor_id,
@@ -129,13 +145,22 @@ export const getAvailableMentors = async (req: Request, res: Response) => {
       JOIN alumni a ON a.user_id = u.user_id
       WHERE m.availability = TRUE
       ORDER BY a.department, u.name
+      LIMIT $1 OFFSET $2
     `;
 
-    const result = await client.query(query);
+    const result = await client.query(query, [limit, offset]);
 
     res.status(StatusCodes.OK).json({
       message: "Available mentors fetched successfully",
       data: result.rows,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        total,
+        limit,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
     });
 
   } catch (error) {

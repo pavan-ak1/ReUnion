@@ -6,6 +6,10 @@ export const getAllJobs = async (req: Request, res: Response) => {
   const client = await pool.connect();
 
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
+
     const query = `
       SELECT 
         j.job_id,
@@ -20,14 +24,34 @@ export const getAllJobs = async (req: Request, res: Response) => {
         u.email AS alumni_email
       FROM jobs j
       JOIN users u ON j.alumni_id = u.user_id
-      ORDER BY j.posted_date DESC;
+      ORDER BY 
+        CASE WHEN j.application_deadline IS NULL OR j.application_deadline >= CURRENT_DATE THEN 0 ELSE 1 END,
+        j.posted_date DESC
+      LIMIT $1 OFFSET $2
     `;
 
-    const result = await client.query(query);
+    const result = await client.query(query, [limit, offset]);
+
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM jobs j
+      JOIN users u ON j.alumni_id = u.user_id
+    `;
+    const countResult = await client.query(countQuery);
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / limit);
 
     res.status(StatusCodes.OK).json({
       message: "All jobs fetched successfully",
       data: result.rows,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalRecords: total,
+        recordsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
     });
   } catch (error) {
     console.error("Error fetching jobs:", error);
@@ -193,18 +217,41 @@ export const getAlumniJobs = async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
     const { user_id } = req.user!;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
 
     const query = `
       SELECT job_id, job_title, company, location, employment_type, posted_date, application_deadline
       FROM jobs
       WHERE alumni_id = $1
-      ORDER BY posted_date DESC
+      ORDER BY 
+        CASE WHEN application_deadline IS NULL OR application_deadline >= CURRENT_DATE THEN 0 ELSE 1 END,
+        posted_date DESC
+      LIMIT $2 OFFSET $3
     `;
-    const result = await client.query(query, [user_id]);
+    const result = await client.query(query, [user_id, limit, offset]);
+
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM jobs
+      WHERE alumni_id = $1
+    `;
+    const countResult = await client.query(countQuery, [user_id]);
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / limit);
 
     res.status(StatusCodes.OK).json({
       message: "Jobs fetched successfully",
       data: result.rows,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalRecords: total,
+        recordsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
     });
   } catch (error) {
     console.error("Error fetching alumni jobs:", error);

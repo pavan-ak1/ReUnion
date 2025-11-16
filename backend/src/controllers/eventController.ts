@@ -6,6 +6,10 @@ import { StatusCodes } from "http-status-codes";
 export const getAllEvents = async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
+
     const query = `
       SELECT 
         e.event_id,
@@ -17,13 +21,33 @@ export const getAllEvents = async (req: Request, res: Response) => {
         u.email AS organizer_email
       FROM events e
       JOIN users u ON e.organizer_id = u.user_id
-      ORDER BY e.date ASC NULLS LAST
+      ORDER BY 
+        CASE WHEN e.date >= CURRENT_DATE THEN 0 ELSE 1 END,
+        e.date ASC NULLS LAST
+      LIMIT $1 OFFSET $2
     `;
-    const result = await client.query(query);
+    const result = await client.query(query, [limit, offset]);
+
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM events e
+      JOIN users u ON e.organizer_id = u.user_id
+    `;
+    const countResult = await client.query(countQuery);
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / limit);
 
     res.status(StatusCodes.OK).json({
       message: "All events fetched successfully",
       data: result.rows,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalRecords: total,
+        recordsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
     });
   } catch (error) {
     console.error("Error fetching events:", error);
