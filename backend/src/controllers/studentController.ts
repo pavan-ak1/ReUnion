@@ -135,10 +135,18 @@ export const getAllAlumni = async (req: Request, res: Response) => {
     const degree = req.query.degree ? String(req.query.degree) : "";
     const company = req.query.company ? String(req.query.company) : "";
     const location = req.query.location ? String(req.query.location) : "";
+    const graduation_year = req.query.graduation_year ? String(req.query.graduation_year) : "";
 
     let baseQuery = `
-      SELECT u.name, u.email, a.degree, a.department,
-             a.current_position, a.company, a.location
+      SELECT 
+        u.name, 
+        u.email, 
+        a.degree, 
+        a.department,
+        a.current_position, 
+        a.company, 
+        a.location,
+        a.graduation_year
       FROM users u
       JOIN alumni a ON a.user_id = u.user_id
       WHERE 1=1
@@ -147,42 +155,42 @@ export const getAllAlumni = async (req: Request, res: Response) => {
     const params: any[] = [];
     let index = 1;
 
-    // Search by name
     if (search) {
       baseQuery += ` AND LOWER(u.name) LIKE LOWER($${index})`;
       params.push(`%${search}%`);
       index++;
     }
 
-    // Filter by company
-    // Filter by company
-if (company) {
-  baseQuery += ` AND LOWER(a.company) LIKE LOWER($${index})`;
-  params.push(`%${company}%`);
-  index++;
-}
+    if (company) {
+      baseQuery += ` AND LOWER(a.company) LIKE LOWER($${index})`;
+      params.push(`%${company}%`);
+      index++;
+    }
 
-// Filter by department
-if (department) {
-  baseQuery += ` AND LOWER(a.department) LIKE LOWER($${index})`;
-  params.push(`%${department}%`);
-  index++;
-}
+    if (department) {
+      baseQuery += ` AND LOWER(a.department) LIKE LOWER($${index})`;
+      params.push(`%${department}%`);
+      index++;
+    }
 
-// Filter by degree
-if (degree) {
-  baseQuery += ` AND LOWER(a.degree) LIKE LOWER($${index})`;
-  params.push(`%${degree}%`);
-  index++;
-}
+    if (degree) {
+      baseQuery += ` AND LOWER(a.degree) LIKE LOWER($${index})`;
+      params.push(`%${degree}%`);
+      index++;
+    }
 
-// Filter by location
-if (location) {
-  baseQuery += ` AND LOWER(a.location) LIKE LOWER($${index})`;
-  params.push(`%${location}%`);
-  index++;
-}
+    if (location) {
+      baseQuery += ` AND LOWER(a.location) LIKE LOWER($${index})`;
+      params.push(`%${location}%`);
+      index++;
+    }
 
+    // NEW: Graduation year filter
+    if (graduation_year) {
+      baseQuery += ` AND a.graduation_year = $${index}`;
+      params.push(Number(graduation_year));
+      index++;
+    }
 
     const result = await client.query(baseQuery, params);
 
@@ -201,30 +209,31 @@ if (location) {
 };
 
 
-
-
 export const getAlumniYearStats = async (req: Request, res: Response) => {
   const client = await pool.connect();
 
   try {
     const query = `
       SELECT 
-        a.graduation_year AS year,
-        COUNT(*) AS count
-      FROM alumni a
-      GROUP BY a.graduation_year
-      ORDER BY a.graduation_year ASC;
+        graduation_year,
+        COUNT(*) AS total_alumni
+      FROM alumni
+      GROUP BY graduation_year
+      ORDER BY graduation_year ASC
     `;
 
     const result = await client.query(query);
 
-    res.status(200).json({
-      message: "Alumni year-wise stats fetched successfully",
+    res.status(StatusCodes.OK).json({
+      message: "Alumni year stats fetched successfully",
       data: result.rows,
     });
+
   } catch (error) {
     console.error("Error fetching alumni year stats:", error);
-    res.status(500).json({ message: "Server error while fetching stats" });
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      message: "Server error while fetching alumni year stats",
+    });
   } finally {
     client.release();
   }
