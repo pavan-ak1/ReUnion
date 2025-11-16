@@ -135,10 +135,18 @@ export const getAllAlumni = async (req: Request, res: Response) => {
     const degree = req.query.degree ? String(req.query.degree) : "";
     const company = req.query.company ? String(req.query.company) : "";
     const location = req.query.location ? String(req.query.location) : "";
+    const graduation_year = req.query.graduation_year ? String(req.query.graduation_year) : "";
 
     let baseQuery = `
-      SELECT u.name, u.email, a.degree, a.department,
-             a.current_position, a.company, a.location
+      SELECT 
+        u.name, 
+        u.email, 
+        a.degree, 
+        a.department,
+        a.current_position, 
+        a.company, 
+        a.location,
+        a.graduation_year
       FROM users u
       JOIN alumni a ON a.user_id = u.user_id
       WHERE 1=1
@@ -147,42 +155,42 @@ export const getAllAlumni = async (req: Request, res: Response) => {
     const params: any[] = [];
     let index = 1;
 
-    // Search by name
     if (search) {
       baseQuery += ` AND LOWER(u.name) LIKE LOWER($${index})`;
       params.push(`%${search}%`);
       index++;
     }
 
-    // Filter by company
-    // Filter by company
-if (company) {
-  baseQuery += ` AND LOWER(a.company) LIKE LOWER($${index})`;
-  params.push(`%${company}%`);
-  index++;
-}
+    if (company) {
+      baseQuery += ` AND LOWER(a.company) LIKE LOWER($${index})`;
+      params.push(`%${company}%`);
+      index++;
+    }
 
-// Filter by department
-if (department) {
-  baseQuery += ` AND LOWER(a.department) LIKE LOWER($${index})`;
-  params.push(`%${department}%`);
-  index++;
-}
+    if (department) {
+      baseQuery += ` AND LOWER(a.department) LIKE LOWER($${index})`;
+      params.push(`%${department}%`);
+      index++;
+    }
 
-// Filter by degree
-if (degree) {
-  baseQuery += ` AND LOWER(a.degree) LIKE LOWER($${index})`;
-  params.push(`%${degree}%`);
-  index++;
-}
+    if (degree) {
+      baseQuery += ` AND LOWER(a.degree) LIKE LOWER($${index})`;
+      params.push(`%${degree}%`);
+      index++;
+    }
 
-// Filter by location
-if (location) {
-  baseQuery += ` AND LOWER(a.location) LIKE LOWER($${index})`;
-  params.push(`%${location}%`);
-  index++;
-}
+    if (location) {
+      baseQuery += ` AND LOWER(a.location) LIKE LOWER($${index})`;
+      params.push(`%${location}%`);
+      index++;
+    }
 
+    // NEW: Graduation year filter
+    if (graduation_year) {
+      baseQuery += ` AND a.graduation_year = $${index}`;
+      params.push(Number(graduation_year));
+      index++;
+    }
 
     const result = await client.query(baseQuery, params);
 
@@ -199,3 +207,4 @@ if (location) {
     client.release();
   }
 };
+

@@ -24,6 +24,7 @@ export default function AlumniList() {
   const [department, setDepartment] = useState("");
   const [degree, setDegree] = useState("");
   const [location, setLocation] = useState("");
+  const [graduationYear, setGraduationYear] = useState("");
 
   const debounceRef = useRef<number | null>(null);
 
@@ -67,29 +68,32 @@ export default function AlumniList() {
     if (department) params.department = department;
     if (degree) params.degree = degree;
     if (location) params.location = location;
+    if (graduationYear) params.graduation_year = graduationYear;
     return params;
   };
 
   // Debounced search
-  useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+ useEffect(() => {
+  if (debounceRef.current !== null) {
+    clearTimeout(debounceRef.current);
+  }
 
-    debounceRef.current = window.setTimeout(() => {
-      fetchAlumni(buildParams());
-    }, 400);
+  const timeout = window.setTimeout(() => {
+    fetchAlumni(buildParams());
+  }, 400);
 
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-    // eslint-disable-next-line
-  }, [search]);
+  debounceRef.current = timeout;
+
+  return () => {
+    clearTimeout(timeout);
+  };
+}, [search]);
+
 
   // Convert "all" → "" for backend filters
   const normalize = (val: string) => (val === "all" ? "" : val);
 
-  // Filter handlers
+  // Filter handlers (each triggers API)
   const onCompanyChange = (val: string) => {
     const v = normalize(val);
     setCompany(v);
@@ -114,6 +118,12 @@ export default function AlumniList() {
     fetchAlumni({ ...buildParams(), location: v || undefined });
   };
 
+  const onGraduationYearChange = (val: string) => {
+    const v = normalize(val);
+    setGraduationYear(v);
+    fetchAlumni({ ...buildParams(), graduation_year: v || undefined });
+  };
+
   // Reset all filters
   const clearAll = () => {
     setSearch("");
@@ -121,15 +131,18 @@ export default function AlumniList() {
     setDepartment("");
     setDegree("");
     setLocation("");
+    setGraduationYear("");
     fetchAlumni({});
   };
 
-  // Unique options
-  const uniq = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)));
+  // Unique filter options
+  const uniq = (arr: any[]) => Array.from(new Set(arr.filter(Boolean)));
+
   const companyOptions = uniq(allAlumniSnapshot.map(a => a.company)).sort();
   const departmentOptions = uniq(allAlumniSnapshot.map(a => a.department)).sort();
   const degreeOptions = uniq(allAlumniSnapshot.map(a => a.degree)).sort();
   const locationOptions = uniq(allAlumniSnapshot.map(a => a.location)).sort();
+  const graduationYearOptions = uniq(allAlumniSnapshot.map(a => a.graduation_year)).sort();
 
   if (loading)
     return (
@@ -151,28 +164,21 @@ export default function AlumniList() {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0B0B0B]/60 to-[#0B0B0B]" />
       </div>
 
-      <Header
-        logoText="ReUnion Student"
-        accent="from-cyan-400 to-blue-500"
-        dashboardLinks
-      />
+      <Header logoText="ReUnion Student" accent="from-cyan-400 to-blue-500" dashboardLinks />
 
       <main className="relative z-10 max-w-6xl mx-auto px-6 py-24 sm:py-32 space-y-12">
-        <h1 className="text-4xl sm:text-5xl font-bold text-center">
-          Alumni Directory
-        </h1>
+        <h1 className="text-4xl sm:text-5xl font-bold text-center">Alumni Directory</h1>
         <p className="text-gray-400 text-center max-w-2xl mx-auto">
           Explore the registered alumni and their academic & professional background.
         </p>
 
         {/* Search + Filters */}
         <div className="space-y-6 mt-10">
+
           {/* Search */}
           <div className="flex flex-col md:flex-row md:items-center gap-4">
             <div className="flex-1">
-              <label className="text-sm text-gray-300 mb-1 block">
-                Search Alumni
-              </label>
+              <label className="text-sm text-gray-300 mb-1 block">Search Alumni</label>
               <input
                 type="text"
                 placeholder="Search by name..."
@@ -185,7 +191,7 @@ export default function AlumniList() {
 
             <button
               onClick={clearAll}
-              className="px-4 py-3 bg-white/10 border border-white/10 rounded-lg text-sm 
+              className="px-4 py-3 mt-6 bg-white/10 border border-white/10 rounded-lg text-sm 
               hover:bg-white/20 transition w-full md:w-auto"
             >
               Clear Filters
@@ -193,78 +199,28 @@ export default function AlumniList() {
           </div>
 
           {/* Dropdown Filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+
             {/* COMPANY */}
-            <div>
-              <label className="text-sm text-gray-300 mb-1 block">Company</label>
-              <Select value={company || "all"} onValueChange={onCompanyChange}>
-                <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
-                  <SelectValue placeholder="All Companies" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
-                  <SelectItem value="all">All Companies</SelectItem>
-                  {companyOptions.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <FilterBlock label="Company" value={company} onChange={onCompanyChange} options={companyOptions} />
 
             {/* DEPARTMENT */}
-            <div>
-              <label className="text-sm text-gray-300 mb-1 block">Department</label>
-              <Select value={department || "all"} onValueChange={onDepartmentChange}>
-                <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
-                  <SelectValue placeholder="All Departments" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
-                  <SelectItem value="all">All Departments</SelectItem>
-                  {departmentOptions.map((d) => (
-                    <SelectItem key={d} value={d}>
-                      {d}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <FilterBlock label="Department" value={department} onChange={onDepartmentChange} options={departmentOptions} />
 
             {/* DEGREE */}
-            <div>
-              <label className="text-sm text-gray-300 mb-1 block">Degree</label>
-              <Select value={degree || "all"} onValueChange={onDegreeChange}>
-                <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
-                  <SelectValue placeholder="All Degrees" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
-                  <SelectItem value="all">All Degrees</SelectItem>
-                  {degreeOptions.map((d) => (
-                    <SelectItem key={d} value={d}>
-                      {d}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <FilterBlock label="Degree" value={degree} onChange={onDegreeChange} options={degreeOptions} />
 
             {/* LOCATION */}
-            <div>
-              <label className="text-sm text-gray-300 mb-1 block">Location</label>
-              <Select value={location || "all"} onValueChange={onLocationChange}>
-                <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
-                  <SelectValue placeholder="All Locations" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
-                  <SelectItem value="all">All Locations</SelectItem>
-                  {locationOptions.map((l) => (
-                    <SelectItem key={l} value={l}>
-                      {l}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <FilterBlock label="Location" value={location} onChange={onLocationChange} options={locationOptions} />
+
+            {/* GRAD YEAR */}
+            <FilterBlock
+              label="Graduation Year"
+              value={graduationYear}
+              onChange={onGraduationYearChange}
+              options={graduationYearOptions}
+            />
+
           </div>
         </div>
 
@@ -277,6 +233,7 @@ export default function AlumniList() {
                 <th className="py-3 px-4 border-b border-white/10">Email</th>
                 <th className="py-3 px-4 border-b border-white/10">Degree</th>
                 <th className="py-3 px-4 border-b border-white/10">Department</th>
+                <th className="py-3 px-4 border-b border-white/10">Grad Year</th>
                 <th className="py-3 px-4 border-b border-white/10">Position</th>
                 <th className="py-3 px-4 border-b border-white/10">Company</th>
                 <th className="py-3 px-4 border-b border-white/10">Location</th>
@@ -285,14 +242,12 @@ export default function AlumniList() {
 
             <tbody>
               {alumni.map((al, index) => (
-                <tr
-                  key={index}
-                  className="border-b border-white/10 hover:bg-white/5 transition"
-                >
+                <tr key={index} className="border-b border-white/10 hover:bg-white/5 transition">
                   <td className="py-3 px-4">{al.name}</td>
                   <td className="py-3 px-4 text-cyan-300">{al.email}</td>
                   <td className="py-3 px-4">{al.degree}</td>
                   <td className="py-3 px-4">{al.department}</td>
+                  <td className="py-3 px-4">{al.graduation_year}</td>
                   <td className="py-3 px-4">{al.current_position}</td>
                   <td className="py-3 px-4">{al.company}</td>
                   <td className="py-3 px-4">{al.location}</td>
@@ -301,7 +256,7 @@ export default function AlumniList() {
 
               {alumni.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-gray-400">
+                  <td colSpan={8} className="py-8 text-center text-gray-400">
                     No alumni found.
                   </td>
                 </tr>
@@ -315,6 +270,38 @@ export default function AlumniList() {
           <span className="text-cyan-400 font-semibold">{alumni.length}</span>
         </p>
       </main>
+    </div>
+  );
+}
+
+/** Helper for dropdown UI **/
+function FilterBlock({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: string[];
+}) {
+  return (
+    <div>
+      <label className="text-sm text-gray-300 mb-1 block">{label}</label>
+      <Select value={value || "all"} onValueChange={onChange}>
+        <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
+          <SelectValue placeholder={`All ${label}`} />
+        </SelectTrigger>
+        <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
+          <SelectItem value="all">All {label}</SelectItem>
+          {options.map((opt) => (
+            <SelectItem key={opt} value={opt}>
+              {opt}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
