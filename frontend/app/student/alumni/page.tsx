@@ -5,6 +5,8 @@ import api from "@/lib/api";
 import Header from "@/components/Header";
 import Aurora from "@/components/Aurora";
 
+import AlumniYearChart from "@/components/AlumniYearChart";
+
 import {
   Select,
   SelectTrigger,
@@ -27,7 +29,29 @@ export default function AlumniList() {
 
   const debounceRef = useRef<number | null>(null);
 
-  // Fetch alumni with params
+  // YEAR STATS FOR CHART
+  const [yearStats, setYearStats] = useState<any[]>([]);
+
+  useEffect(() => {
+  const fetchYearStats = async () => {
+    try {
+      const res = await api.get("/alumni/year-stats", {
+        withCredentials: true,
+      });
+
+      console.log("YEAR STATS:", res.data.data);
+      setYearStats(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to load year stats:", err);
+    }
+  };
+
+  fetchYearStats();
+}, []);
+
+
+
+  // Fetch alumni with filters
   const fetchAlumni = async (params: Record<string, string | undefined> = {}) => {
     setLoading(true);
     try {
@@ -41,7 +65,7 @@ export default function AlumniList() {
     }
   };
 
-  // Initial load
+  // Initial fetch
   useEffect(() => {
     const initialLoad = async () => {
       setLoading(true);
@@ -59,7 +83,7 @@ export default function AlumniList() {
     initialLoad();
   }, []);
 
-  // Build query params
+  // Build params
   const buildParams = () => {
     const params: Record<string, string | undefined> = {};
     if (search) params.search = search;
@@ -70,11 +94,9 @@ export default function AlumniList() {
     return params;
   };
 
-  // Debounced search
+  // Debounce search
   useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
     debounceRef.current = window.setTimeout(() => {
       fetchAlumni(buildParams());
@@ -86,7 +108,7 @@ export default function AlumniList() {
     // eslint-disable-next-line
   }, [search]);
 
-  // Convert "all" → "" for backend filters
+  // Normalize ("all" -> "")
   const normalize = (val: string) => (val === "all" ? "" : val);
 
   // Filter handlers
@@ -114,7 +136,7 @@ export default function AlumniList() {
     fetchAlumni({ ...buildParams(), location: v || undefined });
   };
 
-  // Reset all filters
+  // Clear everything
   const clearAll = () => {
     setSearch("");
     setCompany("");
@@ -124,7 +146,7 @@ export default function AlumniList() {
     fetchAlumni({});
   };
 
-  // Unique options
+  // Unique dropdown values
   const uniq = (arr: string[]) => Array.from(new Set(arr.filter(Boolean)));
   const companyOptions = uniq(allAlumniSnapshot.map(a => a.company)).sort();
   const departmentOptions = uniq(allAlumniSnapshot.map(a => a.department)).sort();
@@ -158,6 +180,8 @@ export default function AlumniList() {
       />
 
       <main className="relative z-10 max-w-6xl mx-auto px-6 py-24 sm:py-32 space-y-12">
+        
+        {/* PAGE TITLE */}
         <h1 className="text-4xl sm:text-5xl font-bold text-center">
           Alumni Directory
         </h1>
@@ -165,14 +189,14 @@ export default function AlumniList() {
           Explore the registered alumni and their academic & professional background.
         </p>
 
-        {/* Search + Filters */}
+        {/* ⭐ NEW: YEAR-WISE BAR CHART */}
+        <AlumniYearChart data={yearStats} />
+
+        {/* SEARCH + FILTERS */}
         <div className="space-y-6 mt-10">
-          {/* Search */}
           <div className="flex flex-col md:flex-row md:items-center gap-4">
             <div className="flex-1">
-              <label className="text-sm text-gray-300 mb-1 block">
-                Search Alumni
-              </label>
+              <label className="text-sm text-gray-300 mb-1 block">Search Alumni</label>
               <input
                 type="text"
                 placeholder="Search by name..."
@@ -192,8 +216,9 @@ export default function AlumniList() {
             </button>
           </div>
 
-          {/* Dropdown Filters */}
+          {/* FILTER DROPDOWNS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            
             {/* COMPANY */}
             <div>
               <label className="text-sm text-gray-300 mb-1 block">Company</label>
@@ -204,9 +229,7 @@ export default function AlumniList() {
                 <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
                   <SelectItem value="all">All Companies</SelectItem>
                   {companyOptions.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -219,12 +242,10 @@ export default function AlumniList() {
                 <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
                   <SelectValue placeholder="All Departments" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
+                <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
                   {departmentOptions.map((d) => (
-                    <SelectItem key={d} value={d}>
-                      {d}
-                    </SelectItem>
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -237,12 +258,10 @@ export default function AlumniList() {
                 <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
                   <SelectValue placeholder="All Degrees" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
+                <SelectContent>
                   <SelectItem value="all">All Degrees</SelectItem>
                   {degreeOptions.map((d) => (
-                    <SelectItem key={d} value={d}>
-                      {d}
-                    </SelectItem>
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -255,16 +274,15 @@ export default function AlumniList() {
                 <SelectTrigger className="bg-white/5 border border-white/10 text-white p-3 rounded-lg">
                   <SelectValue placeholder="All Locations" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#0F0F0F] text-white border border-white/10">
+                <SelectContent>
                   <SelectItem value="all">All Locations</SelectItem>
                   {locationOptions.map((l) => (
-                    <SelectItem key={l} value={l}>
-                      {l}
-                    </SelectItem>
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
           </div>
         </div>
 
@@ -285,10 +303,7 @@ export default function AlumniList() {
 
             <tbody>
               {alumni.map((al, index) => (
-                <tr
-                  key={index}
-                  className="border-b border-white/10 hover:bg-white/5 transition"
-                >
+                <tr key={index} className="border-b border-white/10 hover:bg-white/5 transition">
                   <td className="py-3 px-4">{al.name}</td>
                   <td className="py-3 px-4 text-cyan-300">{al.email}</td>
                   <td className="py-3 px-4">{al.degree}</td>
@@ -311,9 +326,9 @@ export default function AlumniList() {
         </div>
 
         <p className="text-gray-400 text-center mt-6">
-          Total Alumni:{" "}
-          <span className="text-cyan-400 font-semibold">{alumni.length}</span>
+          Total Alumni: <span className="text-cyan-400 font-semibold">{alumni.length}</span>
         </p>
+
       </main>
     </div>
   );

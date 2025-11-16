@@ -199,3 +199,33 @@ if (location) {
     client.release();
   }
 };
+
+
+
+
+export const getAlumniYearStats = async (req: Request, res: Response) => {
+  const client = await pool.connect();
+
+  try {
+    const query = `
+      SELECT 
+        a.graduation_year AS year,
+        COUNT(*) AS count
+      FROM alumni a
+      GROUP BY a.graduation_year
+      ORDER BY a.graduation_year ASC;
+    `;
+
+    const result = await client.query(query);
+
+    res.status(200).json({
+      message: "Alumni year-wise stats fetched successfully",
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching alumni year stats:", error);
+    res.status(500).json({ message: "Server error while fetching stats" });
+  } finally {
+    client.release();
+  }
+};
