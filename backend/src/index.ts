@@ -26,7 +26,8 @@ app.use(express.urlencoded({ extended: true }));
 // CORS Configuration
 const allowedOrigins = [
   'http://localhost:3000',
-  process.env.FRONTEND_URL
+  process.env.FRONTEND_URL,
+  'https://re-union-ten.vercel.app'
 ];
 
 app.use(cors({
