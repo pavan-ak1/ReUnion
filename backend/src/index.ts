@@ -1,5 +1,4 @@
-import dotenv from "dotenv";
-dotenv.config();
+import "dotenv/config";
 import express from "express";
 import type { Request, Response } from "express";
 import cors from "cors";
@@ -10,13 +9,13 @@ import morgan from "morgan";
 
 //imports
 import { connectDb } from "./db/db.js";
-import { testConnection } from "./db/pool.js";
 import authRoutes from "./routes/authRoutes.js";
 import studentRoutes from "./routes/studentProfileRoutes.js";
 import eventRoutes from "./routes/eventRoutes.js";
 import jobsRoutes from "./routes/jobRoutes.js";
 import alumniRoutes from "./routes/alumniRoutes.js";
 import mentorRoutes from "./routes/mentorRoutes.js";
+import { connectRedis } from "./cache/redisClient.js";
 
 const app = express();
 
@@ -27,27 +26,24 @@ app.use(express.urlencoded({ extended: true }));
 // CORS Configuration
 const allowedOrigins = [
   'http://localhost:3000',
-  // Add other allowed origins here in production
+  process.env.FRONTEND_URL
 ];
 
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin as string)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header(
-      'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-    );
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
     
-    // Handle preflight
-    if (req.method === 'OPTIONS') {
-      return res.sendStatus(200);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
     }
-  }
-  next();
-});
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 
 // Cookie parser with secret
 app.use(cookieParser(process.env.JWT_SECRET));
@@ -75,11 +71,7 @@ const port = process.env.PORT || 5000;
 
 const start = async () => {
   try {
-    console.log('Testing Neon DB connection...');
-    const isConnected = await testConnection();
-    if (!isConnected) {
-      throw new Error('Failed to connect to Neon DB. Check your connection string and network.');
-    }
+    await connectRedis();
     
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);

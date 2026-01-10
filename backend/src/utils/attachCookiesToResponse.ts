@@ -7,24 +7,14 @@ interface User{
 }
 
 
-export const attachCookiesToResponse = (res:Response, token:string)=>{
-    const isProduction = process.env.NODE_ENV === 'production';
-    const oneDay = 1000 * 60 * 60 * 24; // 1 day in milliseconds
-
-    const cookieOptions: any = {
+export const attachCookiesToResponse = (res: Response, token: string) => {
+    res.cookie("token", token, {
         httpOnly: true,
-        secure: isProduction,
+        secure: true,      // Render = HTTPS
         signed: true,
-        expires: new Date(Date.now() + oneDay),
-        sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-site cookies in production
-        path: '/',
-        domain: isProduction ? '.yourdomain.com' : 'localhost', // Replace with your domain in production
-    };
-
-    console.log('Setting cookie with options:', {
-        ...cookieOptions,
-        expires: cookieOptions.expires.toISOString(),
+        sameSite: "none",  // Required for cross-site cookies
+        path: "/",
+        expires: new Date(Date.now() + 1000 * 60 * 60 * 24)
     });
-
-    res.cookie('token', token, cookieOptions);
 };
+

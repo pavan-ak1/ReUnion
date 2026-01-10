@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import pool from "../db/pool.js";
+import {pool} from "../db/pool.js";
 import { StatusCodes } from "http-status-codes";
 import { hashPassword } from "../utils/hashPassword.js";
 import { checkPassword } from "../utils/checkPasswordMatch.js";
@@ -104,7 +104,7 @@ export const signin = async (req: Request, res: Response) => {
     // Get user from database
     const userResult = await client.query(
       'SELECT user_id, email, password, role FROM users WHERE email = $1',
-      [email.toLowerCase()] // Ensure case-insensitive email comparison
+      [email.toLowerCase()] 
     );
 
     const user = userResult.rows[0];

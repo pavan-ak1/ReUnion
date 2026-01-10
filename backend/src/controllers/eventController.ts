@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
 
-import pool from "../db/pool.js";
+import { pool } from "../db/pool.js";
 import { StatusCodes } from "http-status-codes";
+import { redisClient } from "../cache/redisClient.js";
 
 export const getAllEvents = async (req: Request, res: Response) => {
   const client = await pool.connect();
@@ -9,6 +10,14 @@ export const getAllEvents = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
+
+    const cacheKey = `events:all:page=${page}:limit=${limit}`;
+
+    //check cache first
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.status(StatusCodes.OK).json(JSON.parse(cached));
+    }
 
     const query = `
       SELECT 
@@ -37,7 +46,7 @@ export const getAllEvents = async (req: Request, res: Response) => {
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
 
-    res.status(StatusCodes.OK).json({
+    const responsePayload = {
       message: "All events fetched successfully",
       data: result.rows,
       pagination: {
@@ -46,9 +55,17 @@ export const getAllEvents = async (req: Request, res: Response) => {
         totalRecords: total,
         recordsPerPage: limit,
         hasNextPage: page < totalPages,
-        hasPrevPage: page > 1
-      }
-    });
+        hasPrevPage: page > 1,
+      },
+    };
+
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(responsePayload),
+      { EX: 1800 } // 30 minutes
+    );
+
+    res.status(StatusCodes.OK).json(responsePayload);
   } catch (error) {
     console.error("Error fetching events:", error);
     res.status(500).json({ message: "Server error while fetching events" });
@@ -62,7 +79,9 @@ export const getStudentEvents = async (req: Request, res: Response) => {
 
   try {
     if (req.user!.role !== "student") {
-      return res.status(403).json({ message: "Only students can view registered events" });
+      return res
+        .status(403)
+        .json({ message: "Only students can view registered events" });
     }
 
     const { user_id } = req.user!;
@@ -90,7 +109,9 @@ export const getStudentEvents = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Error fetching student events:", error);
-    res.status(500).json({ message: "Server error while fetching student events" });
+    res
+      .status(500)
+      .json({ message: "Server error while fetching student events" });
   } finally {
     client.release();
   }
@@ -101,7 +122,9 @@ export const registerForEvent = async (req: Request, res: Response) => {
 
   try {
     if (req.user!.role !== "student") {
-      return res.status(403).json({ message: "Only students can register for events" });
+      return res
+        .status(403)
+        .json({ message: "Only students can register for events" });
     }
 
     const { user_id } = req.user!;
@@ -124,7 +147,9 @@ export const registerForEvent = async (req: Request, res: Response) => {
       [user_id, event_id]
     );
     if (already.rows.length > 0) {
-      return res.status(409).json({ message: "Already registered for this event" });
+      return res
+        .status(409)
+        .json({ message: "Already registered for this event" });
     }
 
     await client.query(
@@ -133,7 +158,6 @@ export const registerForEvent = async (req: Request, res: Response) => {
     );
 
     res.status(201).json({ message: "Successfully registered for the event" });
-
   } catch (error) {
     console.error("Error registering for event:", error);
     res.status(500).json({ message: "Server error during event registration" });
@@ -142,13 +166,14 @@ export const registerForEvent = async (req: Request, res: Response) => {
   }
 };
 
-
 export const unregisterFromEvent = async (req: Request, res: Response) => {
   const client = await pool.connect();
 
   try {
     if (req.user!.role !== "student") {
-      return res.status(403).json({ message: "Only students can unregister from events" });
+      return res
+        .status(403)
+        .json({ message: "Only students can unregister from events" });
     }
 
     const { user_id } = req.user!;
@@ -169,7 +194,6 @@ export const unregisterFromEvent = async (req: Request, res: Response) => {
     );
 
     res.status(200).json({ message: "Unregistered successfully" });
-
   } catch (error) {
     console.error("Error unregistering from event:", error);
     res.status(500).json({ message: "Server error while unregistering" });
@@ -206,6 +230,11 @@ export const createEvent = async (req: Request, res: Response) => {
     `,
       [event_name, description || null, date, location, user_id]
     );
+
+    const keys = await redisClient.keys("events:all:*");
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+    }
 
     res.status(201).json({
       message: "Event created successfully",
@@ -280,8 +309,12 @@ export const updateEvent = async (req: Request, res: Response) => {
       [event_name, description, date, location, eventId]
     );
 
-    res.status(200).json({ message: "Event updated successfully" });
+    const keys = await redisClient.keys("events:all:*");
+if (keys.length) {
+  await redisClient.del(keys);
+}
 
+    res.status(200).json({ message: "Event updated successfully" });
   } catch (error) {
     console.error("Error updating event:", error);
     res.status(500).json({ message: "Server error while updating event" });
@@ -289,8 +322,6 @@ export const updateEvent = async (req: Request, res: Response) => {
     client.release();
   }
 };
-
-
 
 export const deleteEvent = async (req: Request, res: Response) => {
   const client = await pool.connect();
@@ -314,9 +345,12 @@ export const deleteEvent = async (req: Request, res: Response) => {
     }
 
     await client.query("DELETE FROM events WHERE event_id = $1", [eventId]);
+    const keys = await redisClient.keys("events:all:*");
+if (keys.length) {
+  await redisClient.del(keys);
+}
 
     res.status(200).json({ message: "Event deleted successfully" });
-
   } catch (error) {
     console.error("Error deleting event:", error);
     res.status(500).json({ message: "Server error while deleting event" });

@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
-import pool from "../db/pool.js";
+import { pool } from "../db/pool.js";
 import { StatusCodes } from "http-status-codes";
+import { redisClient } from "../cache/redisClient.js";
 
 export const getAllJobs = async (req: Request, res: Response) => {
   const client = await pool.connect();
@@ -9,6 +10,12 @@ export const getAllJobs = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
+
+    const cacheKey = `jobs:all:page=${page}:limit=${limit}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.status(StatusCodes.OK).json(JSON.parse(cached));
+    }
 
     const query = `
       SELECT 
@@ -41,7 +48,7 @@ export const getAllJobs = async (req: Request, res: Response) => {
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
 
-    res.status(StatusCodes.OK).json({
+    const responsePayload = {
       message: "All jobs fetched successfully",
       data: result.rows,
       pagination: {
@@ -50,9 +57,17 @@ export const getAllJobs = async (req: Request, res: Response) => {
         totalRecords: total,
         recordsPerPage: limit,
         hasNextPage: page < totalPages,
-        hasPrevPage: page > 1
-      }
-    });
+        hasPrevPage: page > 1,
+      },
+    };
+
+    await redisClient.set(
+      cacheKey,
+      JSON.stringify(responsePayload),
+      { EX: 1800 } // 30 min
+    );
+
+    res.status(StatusCodes.OK).json(responsePayload);
   } catch (error) {
     console.error("Error fetching jobs:", error);
     res
@@ -151,8 +166,6 @@ export const getAppliedJobs = async (req: Request, res: Response) => {
   }
 };
 
-
-
 export const createJob = async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
@@ -186,6 +199,10 @@ export const createJob = async (req: Request, res: Response) => {
       RETURNING 
         job_id, job_title, company, employment_type, location, posted_date
     `;
+    const keys = await redisClient.keys("jobs:*");
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+    }
 
     const result = await client.query(query, [
       user_id,
@@ -201,7 +218,6 @@ export const createJob = async (req: Request, res: Response) => {
       message: "Job created successfully",
       data: result.rows[0],
     });
-
   } catch (error) {
     console.error("Error creating job:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
@@ -212,7 +228,6 @@ export const createJob = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getAlumniJobs = async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
@@ -220,6 +235,11 @@ export const getAlumniJobs = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
+    const cacheKey = `jobs:alumni:${user_id}:page=${page}:limit=${limit}`;
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.status(StatusCodes.OK).json(JSON.parse(cached));
+    }
 
     const query = `
       SELECT job_id, job_title, company, location, employment_type, posted_date, application_deadline
@@ -241,7 +261,7 @@ export const getAlumniJobs = async (req: Request, res: Response) => {
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
 
-    res.status(StatusCodes.OK).json({
+    const responsePayload = {
       message: "Jobs fetched successfully",
       data: result.rows,
       pagination: {
@@ -250,9 +270,15 @@ export const getAlumniJobs = async (req: Request, res: Response) => {
         totalRecords: total,
         recordsPerPage: limit,
         hasNextPage: page < totalPages,
-        hasPrevPage: page > 1
-      }
+        hasPrevPage: page > 1,
+      },
+    };
+
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+      EX: 1800,
     });
+
+    res.status(StatusCodes.OK).json(responsePayload);
   } catch (error) {
     console.error("Error fetching alumni jobs:", error);
     res
@@ -262,7 +288,6 @@ export const getAlumniJobs = async (req: Request, res: Response) => {
     client.release();
   }
 };
-
 
 export const updateJob = async (req: Request, res: Response) => {
   const client = await pool.connect();
@@ -309,6 +334,10 @@ export const updateJob = async (req: Request, res: Response) => {
         jobId,
       ]
     );
+    const keys = await redisClient.keys("jobs:*");
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+    }
 
     res.status(StatusCodes.OK).json({ message: "Job updated successfully" });
   } catch (error) {
@@ -321,15 +350,12 @@ export const updateJob = async (req: Request, res: Response) => {
   }
 };
 
-
-
 export const deleteJob = async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
     const { user_id } = req.user!;
     const { jobId } = req.params;
 
-    
     const check = await client.query(
       `SELECT * FROM jobs WHERE job_id = $1 AND alumni_id = $2`,
       [jobId, user_id]
@@ -342,6 +368,10 @@ export const deleteJob = async (req: Request, res: Response) => {
     }
 
     await client.query("DELETE FROM jobs WHERE job_id = $1", [jobId]);
+    const keys = await redisClient.keys("jobs:*");
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+    }
 
     res.status(StatusCodes.OK).json({ message: "Job deleted successfully" });
   } catch (error) {
@@ -353,8 +383,6 @@ export const deleteJob = async (req: Request, res: Response) => {
     client.release();
   }
 };
-
-
 
 export const getJobApplicants = async (req: Request, res: Response) => {
   const client = await pool.connect();
@@ -402,7 +430,6 @@ export const getJobApplicants = async (req: Request, res: Response) => {
   }
 };
 
-
 export const updateApplicationStatus = async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
@@ -442,5 +469,3 @@ export const updateApplicationStatus = async (req: Request, res: Response) => {
     client.release();
   }
 };
-
-

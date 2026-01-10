@@ -1,4 +1,4 @@
-CREATE TYPE user_role AS ENUM ('student', 'alumni', 'admin');
+CREATE TYPE user_role AS ENUM ('student', 'alumni');
 
 
 CREATE TABLE users (

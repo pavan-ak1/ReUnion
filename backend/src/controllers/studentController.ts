@@ -1,6 +1,13 @@
 import type { Request, Response } from "express";
-import pool from "../db/pool.js";
+import type { QueryResult } from "pg";
+import { pool } from "../db/pool.js";
 import { StatusCodes } from "http-status-codes";
+import crypto from "crypto";
+import { redisClient } from "../cache/redisClient.js";
+
+function hashQuery(obj: object) {
+  return crypto.createHash("md5").update(JSON.stringify(obj)).digest("hex");
+}
 
 // Database row interfaces
 interface CompanyRow {
@@ -22,7 +29,6 @@ interface LocationRow {
 interface GraduationYearRow {
   graduation_year: number;
 }
-
 
 export const getStudentProfile = async (req: Request, res: Response) => {
   const client = await pool.connect();
@@ -140,11 +146,14 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
 
     // Commit transaction
     await client.query("COMMIT");
+    const keys = await redisClient.keys("alumni:*");
+if (keys.length) await redisClient.del(keys);
+
+await redisClient.del(`student:profile:${user_id}`);
 
     return res
       .status(StatusCodes.OK)
       .json({ message: "Profile updated successfully" });
-
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error updating student profile:", error);
@@ -156,31 +165,75 @@ export const updateStudentProfile = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getAllAlumni = async (req: Request, res: Response) => {
   const client = await pool.connect();
 
   try {
-    const search = req.query.search ? String(req.query.search) : "";
-    const department = req.query.department ? String(req.query.department) : "";
-    const degree = req.query.degree ? String(req.query.degree) : "";
-    const company = req.query.company ? String(req.query.company) : "";
-    const location = req.query.location ? String(req.query.location) : "";
-    const graduation_year = req.query.graduation_year ? String(req.query.graduation_year) : "";
+    // ----------------------------
+    // Query Params (Sanitized)
+    // ----------------------------
+    const search = typeof req.query.search === "string" ? req.query.search : "";
+    const department =
+      typeof req.query.department === "string" ? req.query.department : "";
+    const degree = typeof req.query.degree === "string" ? req.query.degree : "";
+    const company =
+      typeof req.query.company === "string" ? req.query.company : "";
+    const location =
+      typeof req.query.location === "string" ? req.query.location : "";
 
-    // Pagination parameters
+    const graduationYear =
+      req.query.graduation_year &&
+      !isNaN(Number(req.query.graduation_year))
+        ? Number(req.query.graduation_year)
+        : null;
+
+    // ----------------------------
+    // Pagination
+    // ----------------------------
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(req.query.limit as string) || 10)
+    );
     const offset = (page - 1) * limit;
 
+    // ----------------------------
+    // Cache Key (Normalized)
+    // ----------------------------
+    const cacheKey =
+      "alumni:list:" +
+      crypto
+        .createHash("md5")
+        .update(
+          JSON.stringify({
+            search,
+            department,
+            degree,
+            company,
+            location,
+            graduationYear,
+            page,
+            limit,
+          })
+        )
+        .digest("hex");
+
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.status(StatusCodes.OK).json(JSON.parse(cached));
+    }
+
+    // ----------------------------
+    // Base Query
+    // ----------------------------
     let baseQuery = `
       SELECT 
-        u.name, 
-        u.email, 
-        a.degree, 
+        u.name,
+        u.email,
+        a.degree,
         a.department,
-        a.current_position, 
-        a.company, 
+        a.current_position,
+        a.company,
         a.location,
         a.graduation_year
       FROM users u
@@ -192,49 +245,50 @@ export const getAllAlumni = async (req: Request, res: Response) => {
     let index = 1;
 
     if (search) {
-      baseQuery += ` AND LOWER(u.name) LIKE LOWER($${index})`;
+      baseQuery += ` AND u.name ILIKE $${index}`;
       params.push(`%${search}%`);
       index++;
     }
 
     if (company) {
-      baseQuery += ` AND LOWER(a.company) LIKE LOWER($${index})`;
+      baseQuery += ` AND a.company ILIKE $${index}`;
       params.push(`%${company}%`);
       index++;
     }
 
     if (department) {
-      baseQuery += ` AND LOWER(a.department) LIKE LOWER($${index})`;
+      baseQuery += ` AND a.department ILIKE $${index}`;
       params.push(`%${department}%`);
       index++;
     }
 
     if (degree) {
-      baseQuery += ` AND LOWER(a.degree) LIKE LOWER($${index})`;
+      baseQuery += ` AND a.degree ILIKE $${index}`;
       params.push(`%${degree}%`);
       index++;
     }
 
     if (location) {
-      baseQuery += ` AND LOWER(a.location) LIKE LOWER($${index})`;
+      baseQuery += ` AND a.location ILIKE $${index}`;
       params.push(`%${location}%`);
       index++;
     }
 
-    // NEW: Graduation year filter
-    if (graduation_year) {
+    if (graduationYear !== null) {
       baseQuery += ` AND a.graduation_year = $${index}`;
-      params.push(Number(graduation_year));
+      params.push(graduationYear);
       index++;
     }
 
-    // Add ordering and pagination
+    // Pagination
     baseQuery += ` ORDER BY u.name ASC LIMIT $${index} OFFSET $${index + 1}`;
     params.push(limit, offset);
 
-    // Count query for total records
+    // ----------------------------
+    // Count Query
+    // ----------------------------
     let countQuery = `
-      SELECT COUNT(*) as total
+      SELECT COUNT(*) AS total
       FROM users u
       JOIN alumni a ON a.user_id = u.user_id
       WHERE 1=1
@@ -244,51 +298,53 @@ export const getAllAlumni = async (req: Request, res: Response) => {
     let countIndex = 1;
 
     if (search) {
-      countQuery += ` AND LOWER(u.name) LIKE LOWER($${countIndex})`;
+      countQuery += ` AND u.name ILIKE $${countIndex}`;
       countParams.push(`%${search}%`);
       countIndex++;
     }
 
     if (company) {
-      countQuery += ` AND LOWER(a.company) LIKE LOWER($${countIndex})`;
+      countQuery += ` AND a.company ILIKE $${countIndex}`;
       countParams.push(`%${company}%`);
       countIndex++;
     }
 
     if (department) {
-      countQuery += ` AND LOWER(a.department) LIKE LOWER($${countIndex})`;
+      countQuery += ` AND a.department ILIKE $${countIndex}`;
       countParams.push(`%${department}%`);
       countIndex++;
     }
 
     if (degree) {
-      countQuery += ` AND LOWER(a.degree) LIKE LOWER($${countIndex})`;
+      countQuery += ` AND a.degree ILIKE $${countIndex}`;
       countParams.push(`%${degree}%`);
       countIndex++;
     }
 
     if (location) {
-      countQuery += ` AND LOWER(a.location) LIKE LOWER($${countIndex})`;
+      countQuery += ` AND a.location ILIKE $${countIndex}`;
       countParams.push(`%${location}%`);
       countIndex++;
     }
 
-    if (graduation_year) {
+    if (graduationYear !== null) {
       countQuery += ` AND a.graduation_year = $${countIndex}`;
-      countParams.push(Number(graduation_year));
+      countParams.push(graduationYear);
       countIndex++;
     }
 
-    // Execute both queries
+    // ----------------------------
+    // Execute Queries
+    // ----------------------------
     const [result, countResult] = await Promise.all([
       client.query(baseQuery, params),
-      client.query(countQuery, countParams)
+      client.query(countQuery, countParams),
     ]);
 
-    const total = parseInt(countResult.rows[0].total);
+    const total = Number(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
 
-    res.status(StatusCodes.OK).json({
+    const responsePayload = {
       message: "Alumni fetched successfully",
       data: result.rows,
       pagination: {
@@ -297,12 +353,18 @@ export const getAllAlumni = async (req: Request, res: Response) => {
         totalRecords: total,
         recordsPerPage: limit,
         hasNextPage: page < totalPages,
-        hasPrevPage: page > 1
-      }
+        hasPrevPage: page > 1,
+      },
+    };
+
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+      EX: 1800, // 30 minutes
     });
+
+    return res.status(StatusCodes.OK).json(responsePayload);
   } catch (error) {
     console.error("Error fetching alumni:", error);
-    res
+    return res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ message: "Server error while fetching alumni" });
   } finally {
@@ -315,55 +377,71 @@ export const getFilterOptions = async (req: Request, res: Response) => {
   const client = await pool.connect();
 
   try {
+    const cacheKey = "alumni:filters";
+
+    // 1. Check if redisClient is defined before attempting to use it
+    if (redisClient) {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        return res.status(StatusCodes.OK).json(JSON.parse(cached));
+      }
+    }
+
     const queries = [
-      'SELECT DISTINCT company FROM alumni WHERE company IS NOT NULL ORDER BY company',
-      'SELECT DISTINCT department FROM alumni WHERE department IS NOT NULL ORDER BY department',
-      'SELECT DISTINCT degree FROM alumni WHERE degree IS NOT NULL ORDER BY degree',
-      'SELECT DISTINCT location FROM alumni WHERE location IS NOT NULL ORDER BY location',
-      'SELECT DISTINCT graduation_year FROM alumni WHERE graduation_year IS NOT NULL ORDER BY graduation_year'
+      "SELECT DISTINCT company FROM alumni WHERE company IS NOT NULL ORDER BY company",
+      "SELECT DISTINCT department FROM alumni WHERE department IS NOT NULL ORDER BY department",
+      "SELECT DISTINCT degree FROM alumni WHERE degree IS NOT NULL ORDER BY degree",
+      "SELECT DISTINCT location FROM alumni WHERE location IS NOT NULL ORDER BY location",
+      "SELECT DISTINCT graduation_year FROM alumni WHERE graduation_year IS NOT NULL ORDER BY graduation_year",
     ];
 
-    const results = await Promise.all(
-      queries.map(query => client.query(query))
+    const results: QueryResult<any>[] = await Promise.all(
+      queries.map((query) => client.query(query))
     );
 
     const options = {
-      companies: results[0]?.rows
-        .filter((row: CompanyRow) => row.company !== null && row.company !== undefined)
-        .map((row: CompanyRow) => row.company) || [],
-      departments: results[1]?.rows
-        .filter((row: DepartmentRow) => row.department !== null && row.department !== undefined)
-        .map((row: DepartmentRow) => row.department) || [],
-      degrees: results[2]?.rows
-        .filter((row: DegreeRow) => row.degree !== null && row.degree !== undefined)
-        .map((row: DegreeRow) => row.degree) || [],
-      locations: results[3]?.rows
-        .filter((row: LocationRow) => row.location !== null && row.location !== undefined)
-        .map((row: LocationRow) => row.location) || [],
-      graduationYears: results[4]?.rows
-        .filter((row: GraduationYearRow) => row.graduation_year !== null && row.graduation_year !== undefined)
-        .map((row: GraduationYearRow) => row.graduation_year) || []
+      companies: results[0]?.rows?.map((r) => r.company) || [],
+      departments: results[1]?.rows?.map((r) => r.department) || [],
+      degrees: results[2]?.rows?.map((r) => r.degree) || [],
+      locations: results[3]?.rows?.map((r) => r.location) || [],
+      graduationYears: results[4]?.rows?.map((r) => r.graduation_year) || [],
     };
 
-    res.status(StatusCodes.OK).json({
+    const responsePayload = {
       message: "Filter options fetched successfully",
-      data: options
-    });
+      data: options,
+    };
+
+    // 2. Safely set the cache if redisClient is available
+    if (redisClient) {
+      await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+        EX: 3600, // 1 hour
+      });
+    }
+
+    return res.status(StatusCodes.OK).json(responsePayload);
   } catch (error) {
     console.error("Error fetching filter options:", error);
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-      message: "Server error while fetching filter options"
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      message: "Server error while fetching filter options",
     });
   } finally {
+    // Always release the DB client back to the pool
     client.release();
   }
 };
-
 
 export const getAlumniYearStats = async (req: Request, res: Response) => {
   const client = await pool.connect();
 
   try {
+     const cacheKey = "alumni:year-stats";
+
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      return res.status(200).json(JSON.parse(cached));
+    }
+
     const query = `
       SELECT 
         graduation_year,
@@ -375,11 +453,16 @@ export const getAlumniYearStats = async (req: Request, res: Response) => {
 
     const result = await client.query(query);
 
-    res.status(StatusCodes.OK).json({
+     const responsePayload = {
       message: "Alumni year stats fetched successfully",
-      data: result.rows,
+      data: result.rows
+    };
+
+    await redisClient.set(cacheKey, JSON.stringify(responsePayload), {
+      EX: 3600
     });
 
+    res.status(200).json(responsePayload);
   } catch (error) {
     console.error("Error fetching alumni year stats:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({

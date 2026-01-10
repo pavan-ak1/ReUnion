@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
-import pool from "../db/pool.js";
+import { pool } from "../db/pool.js";
 import { StatusCodes } from "http-status-codes";
+import { redisClient } from "../cache/redisClient.js";
 
 export const getAlumniProfile = async (req: Request, res: Response) => {
   const client = await pool.connect();
@@ -34,9 +35,8 @@ export const getAlumniProfile = async (req: Request, res: Response) => {
         .json({ message: "Alumni profile not found" });
     }
 
-    // 🎯 IMPORTANT FIX: send only the profile object
+    // IMPORTANT FIX: send only the profile object
     return res.status(StatusCodes.OK).json(result.rows[0]);
-
   } catch (error) {
     console.error("Error fetching alumni profile:", error);
     return res
@@ -100,11 +100,14 @@ export const updateAlumniProfile = async (req: Request, res: Response) => {
     );
 
     await client.query("COMMIT");
+    const keys = await redisClient.keys("alumni:*");
+    if (keys.length) await redisClient.del(keys);
+
+    await redisClient.del(`student:profile:${user_id}`);
 
     res
       .status(StatusCodes.OK)
       .json({ message: "Alumni profile updated successfully" });
-
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error updating alumni profile:", error);
@@ -115,5 +118,3 @@ export const updateAlumniProfile = async (req: Request, res: Response) => {
     client.release();
   }
 };
-
-
