@@ -1,13 +1,34 @@
+# Dependencies (installed inside container)
 node_modules
+
+# Build output (built in Docker)
 dist
+build
+
+# VCS
 .git
 .gitignore
-Dockerfile
-docker-compose.yml
+
+# Logs
+logs
+*.log
 npm-debug.log
 pnpm-debug.log
-logs
+yarn-error.log
+
+# Environment files (NEVER ship secrets)
 .env
-.env.local
-.env.development
-.env.test
+.env.*
+!.env.example
+
+# OS / Editor junk
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# Tests & docs (not needed in prod)
+__tests__
+coverage
+docs
+*.md
