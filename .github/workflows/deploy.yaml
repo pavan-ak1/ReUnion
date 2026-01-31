@@ -24,6 +24,8 @@ jobs:
 
             git pull origin main
 
-            docker-compose down
+            docker rm -f reunion-backend || true
+
+            docker-compose down --remove-orphans
 
             docker-compose up -d --build
